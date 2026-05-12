@@ -22,23 +22,28 @@ public class SpielUI extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel     mainPanel;
 
+    // Game embed container and generator panel
+    private JPanel  gameContainer;
+    private JPanel  gameScreen;
+    private JPanel  infoPanel;
+    private Generator gamePanel;
+    private int currentLevel = 1;
+    private Image currentBackgroundImage;
+
     // Game-screen labels updated on start
-    private Timer  spielTimer;
-    private int    seconds = 0;
-    private JLabel timerLabel;
     private JLabel gameInfoLabel;
     private JLabel gameSterneLabel;
     private JLabel gameDiffLabel;
 
     public SpielUI() {
         setTitle("7StepsToHeaven");
-        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1920, 1080);
         setLocationRelativeTo(null);
         setResizable(false);
 
         addWindowListener(new WindowAdapter() {
-            @Override public void windowClosing(WindowEvent e) { zeigeBeendenDialog(); }
+            @Override public void windowClosing(WindowEvent e) { System.exit(0); }
         });
 
         cardLayout = new CardLayout();
@@ -62,15 +67,15 @@ public class SpielUI extends JFrame {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(40, 60, 40, 60));
 
-        JLabel version = erstelleLabel("VERSION 1.0", 10, TEXT_MUTED, Font.PLAIN);
-        JLabel titel   = erstelleLabel("MEIN SPIEL", 28, TEXT_LIGHT, Font.BOLD);
-        JLabel sub     = erstelleLabel("Das Abenteuer wartet", 12, TEXT_MUTED, Font.PLAIN);
+        JLabel version = erstelleLabel("Version 1.0", 10, TEXT_MUTED, Font.PLAIN);
+        JLabel titel   = erstelleLabel("7StepsToHeaven", 28, TEXT_LIGHT, Font.BOLD);
+        JLabel sub     = erstelleLabel("Get to heaven", 12, TEXT_MUTED, Font.PLAIN);
         version.setAlignmentX(Component.CENTER_ALIGNMENT);
         titel.setAlignmentX(Component.CENTER_ALIGNMENT);
         sub.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         // ── Schwierigkeits-Sektion ──
-        JLabel sectionLabel = erstelleLabel("SCHWIERIGKEIT", 9, TEXT_MUTED, Font.PLAIN);
+        JLabel sectionLabel = erstelleLabel("Difficulty", 9, TEXT_MUTED, Font.PLAIN);
         sectionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel diffRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
@@ -115,9 +120,7 @@ public class SpielUI extends JFrame {
             gameSterneLabel.setText(gewählteSchwierigkeit.getSterne());
             gameSterneLabel.setForeground(dc);
             gameInfoLabel.setText(buildStatsText(gewählteSchwierigkeit));
-            seconds = 0;
-            timerLabel.setText("00:00");
-            spielTimer.start();
+            startGame();
             cardLayout.show(mainPanel, "SPIEL");
         });
         btnBeenden.addActionListener(e -> zeigeBeendenDialog());
@@ -151,24 +154,27 @@ public class SpielUI extends JFrame {
 
     // ── Spielansicht ──────────────────────────────────────────────────────────
     private JPanel erstelleSpielansicht() {
-        JPanel panel = new JPanel();
-        panel.setOpaque(false);
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(50, 60, 50, 60));
+        // This panel is the actual game screen with the generator game on the left
+        // and gameplay information panel on the right.
+        gameScreen = new JPanel(new BorderLayout());
+        gameScreen.setOpaque(false);
+
+        // Container where the actual Generator game panel will be embedded.
+        gameContainer = new JPanel(new BorderLayout());
+        gameContainer.setOpaque(false);
+        gameContainer.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+
+        JLabel placeholder = erstelleLabel("Klicke auf Spiel starten, um das Level zu laden.", 18, TEXT_MUTED, Font.PLAIN);
+        placeholder.setHorizontalAlignment(SwingConstants.CENTER);
+        gameContainer.add(placeholder, BorderLayout.CENTER);
+
+        infoPanel = new JPanel();
+        infoPanel.setOpaque(false);
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBorder(BorderFactory.createEmptyBorder(50, 40, 50, 60));
 
         JLabel laufend = erstelleLabel("— SPIEL LÄUFT —", 10, GREEN_START, Font.PLAIN);
         laufend.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        timerLabel = erstelleLabel("00:00", 42, TEXT_LIGHT, Font.BOLD);
-        timerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel zeitInfo = erstelleLabel("SPIELZEIT", 11, TEXT_MUTED, Font.PLAIN);
-        zeitInfo.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        spielTimer = new Timer(1000, e -> {
-            seconds++;
-            timerLabel.setText(String.format("%02d:%02d", seconds / 60, seconds % 60));
-        });
 
         gameDiffLabel = erstelleLabel("MITTEL", 13, YELLOW, Font.BOLD);
         gameDiffLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -183,25 +189,135 @@ public class SpielUI extends JFrame {
         btnStop.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnStop.addActionListener(e -> zeigeBeendenDialog());
 
-        panel.add(laufend);
-        panel.add(Box.createVerticalStrut(16));
-        panel.add(timerLabel);
-        panel.add(Box.createVerticalStrut(4));
-        panel.add(zeitInfo);
-        panel.add(Box.createVerticalStrut(26));
-        panel.add(erstellePixelDivider());
-        panel.add(Box.createVerticalStrut(16));
-        panel.add(gameDiffLabel);
-        panel.add(Box.createVerticalStrut(6));
-        panel.add(gameSterneLabel);
-        panel.add(Box.createVerticalStrut(8));
-        panel.add(gameInfoLabel);
-        panel.add(Box.createVerticalStrut(16));
-        panel.add(erstellePixelDivider());
-        panel.add(Box.createVerticalStrut(26));
-        panel.add(btnStop);
+        infoPanel.add(laufend);
+        infoPanel.add(Box.createVerticalStrut(26));
+        infoPanel.add(erstellePixelDivider());
+        infoPanel.add(Box.createVerticalStrut(26));
+        infoPanel.add(gameDiffLabel);
+        infoPanel.add(Box.createVerticalStrut(6));
+        infoPanel.add(gameSterneLabel);
+        infoPanel.add(Box.createVerticalStrut(8));
+        infoPanel.add(gameInfoLabel);
+        infoPanel.add(Box.createVerticalStrut(16));
+        infoPanel.add(erstellePixelDivider());
+        infoPanel.add(Box.createVerticalStrut(26));
+        infoPanel.add(btnStop);
 
-        return panel;
+        gameScreen.add(gameContainer, BorderLayout.CENTER);
+        gameScreen.add(infoPanel, BorderLayout.EAST);
+        return gameScreen;
+    }
+
+    private void startGame() {
+        if (gamePanel == null) {
+            // Create the generator panel and pass the background image and UI reference
+            Image backgroundImage = ((HintergrundPanel) getContentPane()).getBackgroundImage();
+            gamePanel = new Generator(backgroundImage, currentLevel, this);
+            gamePanel.setPreferredSize(new Dimension(getWidth(), getHeight()));
+            gamePanel.setFocusable(true);
+        }
+
+        gameContainer.removeAll();
+        gameContainer.add(gamePanel, BorderLayout.CENTER);
+        gameContainer.revalidate();
+        gameContainer.repaint();
+
+        // Hide the info panel for fullscreen effect
+        infoPanel.setVisible(false);
+
+        // Enter fullscreen
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+
+        // Give keyboard focus to the game panel so player controls work immediately.
+        SwingUtilities.invokeLater(() -> {
+            if (gamePanel != null) {
+                gamePanel.requestFocusInWindow();
+            }
+        });
+    }
+
+    // Callback method called by Generator when player wants to return to main menu
+    public void returnToMainMenu() {
+        if (gamePanel != null) {
+            gamePanel.timer.stop();
+            gamePanel = null;
+        }
+        currentLevel = 1;
+        updateHintergrundForLevel(1);
+        gameContainer.removeAll();
+        JLabel placeholder = erstelleLabel("Klicke auf Spiel starten, um das Level zu laden.", 18, TEXT_MUTED, Font.PLAIN);
+        placeholder.setHorizontalAlignment(SwingConstants.CENTER);
+        gameContainer.add(placeholder, BorderLayout.CENTER);
+        gameContainer.revalidate();
+        gameContainer.repaint();
+        infoPanel.setVisible(true);
+        setExtendedState(JFrame.NORMAL);
+        cardLayout.show(mainPanel, "MENU");
+    }
+
+    // Update the HintergrundPanel background image for the given level
+    private void updateHintergrundForLevel(int level) {
+        Component cp = getContentPane();
+        if (cp instanceof HintergrundPanel) {
+            ((HintergrundPanel) cp).setBackgroundForLevel(level);
+            cp.repaint();
+        }
+    }
+
+    // Callback method called by Generator when player reaches end of map
+    public void advanceToNextLevel() {
+        currentLevel++;
+        if (currentLevel > 7) {
+            currentLevel = 1; // Loop back to level 1 after level 7
+        }
+
+        // Update the SpielUI background panel to match the new level
+        updateHintergrundForLevel(currentLevel);
+
+        // Load the next background image
+        Image nextBackground = loadBackgroundForLevel(currentLevel);
+        
+        // Create a new generator for the next level
+        gamePanel = new Generator(nextBackground, currentLevel, this);
+        gamePanel.setPreferredSize(new Dimension(getWidth(), getHeight()));
+        gamePanel.setFocusable(true);
+
+        gameContainer.removeAll();
+        gameContainer.add(gamePanel, BorderLayout.CENTER);
+        gameContainer.revalidate();
+        gameContainer.repaint();
+
+        SwingUtilities.invokeLater(() -> {
+            if (gamePanel != null) {
+                gamePanel.requestFocusInWindow();
+            }
+        });
+    }
+
+    // Load background image for a specific level
+    private Image loadBackgroundForLevel(int level) {
+        try {
+            String[] possiblePaths = {
+                level + ".png",
+                "Background/" + level + ".png",
+                System.getProperty("user.dir") + "/Background/" + level + ".png"
+            };
+
+            for (String path : possiblePaths) {
+                java.io.File f = new java.io.File(path);
+                if (f.exists()) {
+                    ImageIcon icon = new ImageIcon(path);
+                    Image img = icon.getImage();
+                    if (img != null && img.getWidth(null) > 0) {
+                        System.out.println("Loaded level " + level + " background from: " + path);
+                        return img;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Error loading background for level " + level + ": " + e.getMessage());
+        }
+        return null;
     }
 
     // ── Beenden-Dialog ────────────────────────────────────────────────────────
@@ -239,7 +355,7 @@ public class SpielUI extends JFrame {
         ja.setPreferredSize(new Dimension(110, 44));
         nein.setPreferredSize(new Dimension(110, 44));
 
-        ja.addActionListener(e -> { spielTimer.stop(); dialog.dispose(); dispose(); });
+        ja.addActionListener(e -> { dialog.dispose(); dispose(); });
         nein.addActionListener(e -> dialog.dispose());
 
         btnRow.add(ja);
@@ -353,42 +469,38 @@ public class SpielUI extends JFrame {
             loadBackgroundImage();
         }
 
-        private void loadBackgroundImage() {
-            try {
-                String[] possiblePaths = {
-                    "1.png",
-                    "Background/1.png",
-                    System.getProperty("user.dir") + "/Background/1.png"
-                };
-                
-                String foundPath = null;
-                for (String path : possiblePaths) {
-                    java.io.File f = new java.io.File(path);
-                    if (f.exists()) {
-                        foundPath = path;
-                        break;
-                    }
-                }
-                
-                if (foundPath != null) {
-                    System.out.println("Loading background image from: " + foundPath);
-                    ImageIcon icon = new ImageIcon(foundPath);
+        // Public getter so the generator can access the background image
+        public Image getBackgroundImage() {
+            return backgroundImage;
+        }
+
+        // Switch the background to the image for the given level number
+        public void setBackgroundForLevel(int level) {
+            backgroundImage = loadImageForLevel(level);
+            repaint();
+        }
+
+        private Image loadImageForLevel(int level) {
+            String[] possiblePaths = {
+                level + ".png",
+                "Background/" + level + ".png",
+                System.getProperty("user.dir") + "/Background/" + level + ".png"
+            };
+            for (String path : possiblePaths) {
+                java.io.File f = new java.io.File(path);
+                if (f.exists()) {
+                    ImageIcon icon = new ImageIcon(path);
                     Image img = icon.getImage();
-                    
-                    if (img != null && img.getWidth(null) > 0) {
-                        System.out.println("Image loaded successfully: " + img.getWidth(null) + "x" + img.getHeight(null));
-                        backgroundImage = img;
-                    } else {
-                        System.out.println("Image loading failed - returned null or invalid dimensions");
-                        backgroundImage = null;
-                    }
-                } else {
-                    System.out.println("Background image not found in: " + java.util.Arrays.toString(possiblePaths));
-                    backgroundImage = null;
+                    if (img != null && img.getWidth(null) > 0) return img;
                 }
-            } catch (Exception e) {
-                System.out.println("Error loading background image: " + e.getMessage());
-                backgroundImage = null;
+            }
+            return null;
+        }
+
+        private void loadBackgroundImage() {
+            backgroundImage = loadImageForLevel(1);
+            if (backgroundImage == null) {
+                System.out.println("Background image not found for level 1");
             }
         }
 

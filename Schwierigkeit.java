@@ -1,8 +1,8 @@
 public enum Schwierigkeit {
 
-    LEICHT("Leicht",  1, "Entspannt spielen",       new int[]{3, 1, 5}),
-    MITTEL("Mittel",  2, "Normale Herausforderung",  new int[]{5, 2, 3}),
-    SCHWER("Schwer",  3, "Nur für Profis",           new int[]{8, 3, 1});
+    LEICHT("Easy",  1, "Entspannt spielen",       new int[]{3, 1, 5}),
+    MITTEL("Normal",  2, "Normale Herausforderung",  new int[]{5, 2, 3}),
+    SCHWER("Hard",  3, "Nur für Profis",           new int[]{8, 3, 1});
 
     // Felder
     private final String anzeigeName;    // Name für die Oberfläche
