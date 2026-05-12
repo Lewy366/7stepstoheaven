@@ -355,9 +355,22 @@ public class SpielUI extends JFrame {
 
         private void loadBackgroundImage() {
             try {
-                backgroundImage = new ImageIcon("bild.png").getImage();
+                String[] possiblePaths = {
+                    "bild.png",
+                    "./bild.png",
+                    System.getProperty("user.dir") + "/bild.png"
+                };
+                for (String path : possiblePaths) {
+                    java.io.File f = new java.io.File(path);
+                    if (f.exists()) {
+                        backgroundImage = new ImageIcon(path).getImage();
+                        return;
+                    }
+                }
+                System.out.println("Background image not found in: " + java.util.Arrays.toString(possiblePaths));
+                backgroundImage = null;
             } catch (Exception e) {
-                System.out.println("Background image not found: " + e.getMessage());
+                System.out.println("Error loading background image: " + e.getMessage());
                 backgroundImage = null;
             }
         }

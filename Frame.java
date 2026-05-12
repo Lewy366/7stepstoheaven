@@ -13,8 +13,12 @@ public class Frame {
     JPanel panel = new JPanel();
     frame.add(panel);
     
-    
-    ImageIcon backgroundImage = new ImageIcon("bild.png");
+    String imagePath = "bild.png";
+    java.io.File imageFile = new java.io.File(imagePath);
+    if (!imageFile.exists()) {
+        imagePath = System.getProperty("user.dir") + "/bild.png";
+    }
+    ImageIcon backgroundImage = new ImageIcon(imagePath);
     
     Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
     
