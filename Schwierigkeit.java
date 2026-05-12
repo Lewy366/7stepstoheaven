@@ -9,7 +9,7 @@ public enum Schwierigkeit {
     private final int    stufe;          // 1 = leicht, 2 = mittel, 3 = schwer
     private final String beschreibung;  // Kurzbeschreibung
     private final int    leben;         // Anzahl der Startleben
-    private final int    geschwindigkeit; // Spielgeschwindigkeit (z. B. f?r Gegner-KI)
+    private final int    geschwindigkeit; // Spielgeschwindigkeit (z. B. für Gegner-KI)
     private final int    zeitBonus;     // Bonus-Sekunden bei Levelabschluss
 
     // Konstruktor
@@ -22,7 +22,7 @@ public enum Schwierigkeit {
         this.zeitBonus       = werte[2];
     }
 
-    // Getter?
+    // Getter
     public String getAnzeigeName()      { return anzeigeName;     }
     public int    getStufe()            { return stufe;           }
     public String getBeschreibung()     { return beschreibung;    }

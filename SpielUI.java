@@ -19,8 +19,8 @@ public class SpielUI extends JFrame {
 
     private Schwierigkeit gewählteSchwierigkeit = Schwierigkeit.MITTEL;
 
-    private CardLayout cardLayout;
-    private JPanel     mainPanel;
+    private final CardLayout cardLayout;
+    private final JPanel     mainPanel;
 
     // Game-screen labels updated on start
     private Timer  spielTimer;
@@ -31,9 +31,9 @@ public class SpielUI extends JFrame {
     private JLabel gameDiffLabel;
 
     public SpielUI() {
-        setTitle("Mein Spiel");
+        setTitle("7StepsToHeaven");
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
-        setSize(480, 620);
+        setSize(1920, 1080);
         setLocationRelativeTo(null);
         setResizable(false);
 
@@ -347,8 +347,8 @@ public class SpielUI extends JFrame {
     class HintergrundPanel extends JPanel {
         private Image backgroundImage;
 
-        HintergrundPanel() { 
-            setOpaque(true); 
+        HintergrundPanel() {
+            setOpaque(true);
             setBackground(BG_DARK);
             loadBackgroundImage();
         }
@@ -356,19 +356,36 @@ public class SpielUI extends JFrame {
         private void loadBackgroundImage() {
             try {
                 String[] possiblePaths = {
-                    "bild.png",
-                    "./bild.png",
-                    System.getProperty("user.dir") + "/bild.png"
+                    "1.png",
+                    "Background/1.png",
+                    System.getProperty("user.dir") + "/Background/1.png"
                 };
+                
+                String foundPath = null;
                 for (String path : possiblePaths) {
                     java.io.File f = new java.io.File(path);
                     if (f.exists()) {
-                        backgroundImage = new ImageIcon(path).getImage();
-                        return;
+                        foundPath = path;
+                        break;
                     }
                 }
-                System.out.println("Background image not found in: " + java.util.Arrays.toString(possiblePaths));
-                backgroundImage = null;
+                
+                if (foundPath != null) {
+                    System.out.println("Loading background image from: " + foundPath);
+                    ImageIcon icon = new ImageIcon(foundPath);
+                    Image img = icon.getImage();
+                    
+                    if (img != null && img.getWidth(null) > 0) {
+                        System.out.println("Image loaded successfully: " + img.getWidth(null) + "x" + img.getHeight(null));
+                        backgroundImage = img;
+                    } else {
+                        System.out.println("Image loading failed - returned null or invalid dimensions");
+                        backgroundImage = null;
+                    }
+                } else {
+                    System.out.println("Background image not found in: " + java.util.Arrays.toString(possiblePaths));
+                    backgroundImage = null;
+                }
             } catch (Exception e) {
                 System.out.println("Error loading background image: " + e.getMessage());
                 backgroundImage = null;
