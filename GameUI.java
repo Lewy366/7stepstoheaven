@@ -3,9 +3,9 @@ import java.awt.event.*;
 import java.awt.geom.RoundRectangle2D;
 import javax.swing.*;
 
-public class SpielUI extends JFrame {
+public class GameUI extends JFrame {
 
-    // --- Farben ---
+    // --- Colors ---
     private static final Color BG_DARK     = new Color(10, 10, 18);
     private static final Color ACCENT_BLUE = new Color(58, 58, 255);
     private static final Color GREEN_START = new Color(10, 255, 110);
@@ -14,10 +14,10 @@ public class SpielUI extends JFrame {
     private static final Color TEXT_LIGHT  = new Color(232, 232, 255);
     private static final Color TEXT_MUTED  = new Color(106, 106, 154);
 
-    // Color per difficulty level (index matches Schwierigkeit.getStufe()-1)
+    // Color per difficulty level (index matches Difficulty.getLevel()-1)
     private static final Color[] DIFF_COLORS = { GREEN_START, YELLOW, RED_QUIT };
 
-    private Schwierigkeit gewählteSchwierigkeit = Schwierigkeit.MITTEL;
+    private Difficulty selectedDifficulty = Difficulty.NORMAL;
 
     private final CardLayout cardLayout;
     private final JPanel     mainPanel;
@@ -32,10 +32,11 @@ public class SpielUI extends JFrame {
 
     // Game-screen labels updated on start
     private JLabel gameInfoLabel;
-    private JLabel gameSterneLabel;
+    private JLabel gameStarsLabel;
     private JLabel gameDiffLabel;
+    private JLabel gameOverStatsLabel;
 
-    public SpielUI() {
+    public GameUI() {
         setTitle("7StepsToHeaven");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1920, 1080);
@@ -50,110 +51,107 @@ public class SpielUI extends JFrame {
         mainPanel  = new JPanel(cardLayout);
         mainPanel.setOpaque(false);
 
-        mainPanel.add(erstelleHauptmenu(),    "MENU");
-        mainPanel.add(erstelleSpielansicht(), "SPIEL");
+        mainPanel.add(createMainMenu(),    "MENU");
+        mainPanel.add(createGameView(), "GAME");
+        mainPanel.add(createGameOverView(), "GAME_OVER");
 
-        setContentPane(new HintergrundPanel());
+        setContentPane(new BackgroundPanel());
         getContentPane().setLayout(new BorderLayout());
         getContentPane().add(mainPanel, BorderLayout.CENTER);
 
         setVisible(true);
     }
 
-    // ── Hauptmenü ─────────────────────────────────────────────────────────────
-    private JPanel erstelleHauptmenu() {
+    private JPanel createMainMenu() {
         JPanel panel = new JPanel();
         panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(40, 60, 40, 60));
 
-        JLabel version = erstelleLabel("Version 1.0", 10, TEXT_MUTED, Font.PLAIN);
-        JLabel titel   = erstelleLabel("7StepsToHeaven", 28, TEXT_LIGHT, Font.BOLD);
-        JLabel sub     = erstelleLabel("Get to heaven", 12, TEXT_MUTED, Font.PLAIN);
+        JLabel version = createLabel("Version 1.0", 10, TEXT_MUTED, Font.PLAIN);
+        JLabel title = createLabel("7StepsToHeaven", 28, TEXT_LIGHT, Font.BOLD);
+        JLabel sub     = createLabel("Get to heaven", 12, TEXT_MUTED, Font.PLAIN);
         version.setAlignmentX(Component.CENTER_ALIGNMENT);
-        titel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
         sub.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // ── Schwierigkeits-Sektion ──
-        JLabel sectionLabel = erstelleLabel("Difficulty", 9, TEXT_MUTED, Font.PLAIN);
+        JLabel sectionLabel = createLabel("Difficulty", 9, TEXT_MUTED, Font.PLAIN);
         sectionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel diffRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         diffRow.setOpaque(false);
         diffRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel beschLabel  = erstelleLabel(gewählteSchwierigkeit.getBeschreibung(), 11, TEXT_MUTED, Font.PLAIN);
-        JLabel sterneLabel = erstelleLabel(gewählteSchwierigkeit.getSterne(), 16,
-                DIFF_COLORS[gewählteSchwierigkeit.getStufe() - 1], Font.PLAIN);
-        JLabel statsLabel  = erstelleLabel(buildStatsText(gewählteSchwierigkeit), 10, TEXT_MUTED, Font.PLAIN);
-        beschLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        sterneLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel descriptionLabel = createLabel(selectedDifficulty.getDescription(), 11, TEXT_MUTED, Font.PLAIN);
+        JLabel starsLabel = createLabel(selectedDifficulty.getStars(), 16,
+                DIFF_COLORS[selectedDifficulty.getLevel() - 1], Font.PLAIN);
+        JLabel statsLabel = createLabel(buildStatsText(selectedDifficulty), 10, TEXT_MUTED, Font.PLAIN);
+        descriptionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        starsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         statsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        ButtonGroup gruppe = new ButtonGroup();
-        for (int i = 0; i < Schwierigkeit.values().length; i++) {
-            Schwierigkeit s = Schwierigkeit.values()[i];
+        ButtonGroup group = new ButtonGroup();
+        for (int i = 0; i < Difficulty.values().length; i++) {
+            Difficulty s = Difficulty.values()[i];
             Color c = DIFF_COLORS[i];
-            JToggleButton tb = erstelleToggleButton(s.getAnzeigeName(), c);
-            if (s == gewählteSchwierigkeit) tb.setSelected(true);
-            gruppe.add(tb);
+            JToggleButton tb = createToggleButton(s.getDisplayName(), c);
+            if (s == selectedDifficulty) tb.setSelected(true);
+            group.add(tb);
             diffRow.add(tb);
             tb.addActionListener(e -> {
-                gewählteSchwierigkeit = s;
-                beschLabel.setText(s.getBeschreibung());
-                sterneLabel.setText(s.getSterne());
-                sterneLabel.setForeground(c);
+                selectedDifficulty = s;
+                descriptionLabel.setText(s.getDescription());
+                starsLabel.setText(s.getStars());
+                starsLabel.setForeground(c);
                 statsLabel.setText(buildStatsText(s));
             });
         }
 
-        // ── Start / Beenden ──
-        JButton btnStart   = erstelleButton("▶  Spiel starten", GREEN_START);
-        JButton btnBeenden = erstelleButton("✕  Beenden",        RED_QUIT);
+        JButton btnStart = createButton("Start Game", GREEN_START);
+        JButton btnQuit = createButton("Quit", RED_QUIT);
         btnStart.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnBeenden.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnQuit.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         btnStart.addActionListener(e -> {
-            Color dc = DIFF_COLORS[gewählteSchwierigkeit.getStufe() - 1];
-            gameDiffLabel.setText(gewählteSchwierigkeit.getAnzeigeName().toUpperCase());
+            Color dc = DIFF_COLORS[selectedDifficulty.getLevel() - 1];
+            gameDiffLabel.setText(selectedDifficulty.getDisplayName().toUpperCase());
             gameDiffLabel.setForeground(dc);
-            gameSterneLabel.setText(gewählteSchwierigkeit.getSterne());
-            gameSterneLabel.setForeground(dc);
-            gameInfoLabel.setText(buildStatsText(gewählteSchwierigkeit));
+            gameStarsLabel.setText(selectedDifficulty.getStars());
+            gameStarsLabel.setForeground(dc);
+            gameInfoLabel.setText(buildStatsText(selectedDifficulty));
             startGame();
-            cardLayout.show(mainPanel, "SPIEL");
+            cardLayout.show(mainPanel, "GAME");
         });
-        btnBeenden.addActionListener(e -> zeigeBeendenDialog());
+        btnQuit.addActionListener(e -> showQuitDialog());
 
         panel.add(version);
         panel.add(Box.createVerticalStrut(4));
-        panel.add(titel);
+        panel.add(title);
         panel.add(Box.createVerticalStrut(6));
         panel.add(sub);
         panel.add(Box.createVerticalStrut(26));
-        panel.add(erstellePixelDivider());
+        panel.add(createPixelDivider());
         panel.add(Box.createVerticalStrut(18));
         panel.add(sectionLabel);
         panel.add(Box.createVerticalStrut(10));
         panel.add(diffRow);
         panel.add(Box.createVerticalStrut(10));
-        panel.add(sterneLabel);
+        panel.add(starsLabel);
         panel.add(Box.createVerticalStrut(6));
-        panel.add(beschLabel);
+        panel.add(descriptionLabel);
         panel.add(Box.createVerticalStrut(6));
         panel.add(statsLabel);
         panel.add(Box.createVerticalStrut(18));
-        panel.add(erstellePixelDivider());
+        panel.add(createPixelDivider());
         panel.add(Box.createVerticalStrut(18));
         panel.add(btnStart);
         panel.add(Box.createVerticalStrut(12));
-        panel.add(btnBeenden);
+        panel.add(btnQuit);
 
         return panel;
     }
 
-    // ── Spielansicht ──────────────────────────────────────────────────────────
-    private JPanel erstelleSpielansicht() {
+    private JPanel createGameView() {
         // This panel is the actual game screen with the generator game on the left
         // and gameplay information panel on the right.
         gameScreen = new JPanel(new BorderLayout());
@@ -164,7 +162,7 @@ public class SpielUI extends JFrame {
         gameContainer.setOpaque(false);
         gameContainer.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
 
-        JLabel placeholder = erstelleLabel("Klicke auf Spiel starten, um das Level zu laden.", 18, TEXT_MUTED, Font.PLAIN);
+        JLabel placeholder = createLabel("Click Start Game to load the level.", 18, TEXT_MUTED, Font.PLAIN);
         placeholder.setHorizontalAlignment(SwingConstants.CENTER);
         gameContainer.add(placeholder, BorderLayout.CENTER);
 
@@ -173,33 +171,33 @@ public class SpielUI extends JFrame {
         infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
         infoPanel.setBorder(BorderFactory.createEmptyBorder(50, 40, 50, 60));
 
-        JLabel laufend = erstelleLabel("— SPIEL LÄUFT —", 10, GREEN_START, Font.PLAIN);
-        laufend.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel runningLabel = createLabel("-- GAME RUNNING --", 10, GREEN_START, Font.PLAIN);
+        runningLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        gameDiffLabel = erstelleLabel("MITTEL", 13, YELLOW, Font.BOLD);
+        gameDiffLabel = createLabel("NORMAL", 13, YELLOW, Font.BOLD);
         gameDiffLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        gameSterneLabel = erstelleLabel(Schwierigkeit.MITTEL.getSterne(), 18, YELLOW, Font.PLAIN);
-        gameSterneLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        gameStarsLabel = createLabel(Difficulty.NORMAL.getStars(), 18, YELLOW, Font.PLAIN);
+        gameStarsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        gameInfoLabel = erstelleLabel(buildStatsText(Schwierigkeit.MITTEL), 10, TEXT_MUTED, Font.PLAIN);
+        gameInfoLabel = createLabel(buildStatsText(Difficulty.NORMAL), 10, TEXT_MUTED, Font.PLAIN);
         gameInfoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JButton btnStop = erstelleButton("⏹  Spiel beenden", RED_QUIT);
+        JButton btnStop = createButton("Stop Game", RED_QUIT);
         btnStop.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnStop.addActionListener(e -> zeigeBeendenDialog());
+        btnStop.addActionListener(e -> showQuitDialog());
 
-        infoPanel.add(laufend);
+        infoPanel.add(runningLabel);
         infoPanel.add(Box.createVerticalStrut(26));
-        infoPanel.add(erstellePixelDivider());
+        infoPanel.add(createPixelDivider());
         infoPanel.add(Box.createVerticalStrut(26));
         infoPanel.add(gameDiffLabel);
         infoPanel.add(Box.createVerticalStrut(6));
-        infoPanel.add(gameSterneLabel);
+        infoPanel.add(gameStarsLabel);
         infoPanel.add(Box.createVerticalStrut(8));
         infoPanel.add(gameInfoLabel);
         infoPanel.add(Box.createVerticalStrut(16));
-        infoPanel.add(erstellePixelDivider());
+        infoPanel.add(createPixelDivider());
         infoPanel.add(Box.createVerticalStrut(26));
         infoPanel.add(btnStop);
 
@@ -209,10 +207,17 @@ public class SpielUI extends JFrame {
     }
 
     private void startGame() {
+        currentLevel = 1;
+        updateBackgroundForLevel(currentLevel);
+        gamePanel = null;
+        startCurrentLevel();
+    }
+
+    private void startCurrentLevel() {
         if (gamePanel == null) {
             // Create the generator panel and pass the background image and UI reference
-            Image backgroundImage = ((HintergrundPanel) getContentPane()).getBackgroundImage();
-            gamePanel = new Generator(backgroundImage, currentLevel, this);
+            Image backgroundImage = ((BackgroundPanel) getContentPane()).getBackgroundImage();
+            gamePanel = new Generator(backgroundImage, currentLevel, selectedDifficulty, this);
             gamePanel.setPreferredSize(new Dimension(getWidth(), getHeight()));
             gamePanel.setFocusable(true);
         }
@@ -236,6 +241,55 @@ public class SpielUI extends JFrame {
         });
     }
 
+    private JPanel createGameOverView() {
+        JPanel panel = new JPanel();
+        panel.setOpaque(false);
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(120, 60, 80, 60));
+
+        JLabel title = createLabel("GAME OVER", 34, RED_QUIT, Font.BOLD);
+        JLabel permadeath = createLabel("No saves. No second chances. Start from the beginning.", 13, TEXT_LIGHT, Font.PLAIN);
+        gameOverStatsLabel = createLabel("Reached level 1", 12, TEXT_MUTED, Font.PLAIN);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        permadeath.setAlignmentX(Component.CENTER_ALIGNMENT);
+        gameOverStatsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JButton retry = createButton("Restart Run", GREEN_START);
+        JButton menu = createButton("Main Menu", YELLOW);
+        JButton quit = createButton("Quit", RED_QUIT);
+        retry.setAlignmentX(Component.CENTER_ALIGNMENT);
+        menu.setAlignmentX(Component.CENTER_ALIGNMENT);
+        quit.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        retry.addActionListener(e -> {
+            Color dc = DIFF_COLORS[selectedDifficulty.getLevel() - 1];
+            gameDiffLabel.setText(selectedDifficulty.getDisplayName().toUpperCase());
+            gameDiffLabel.setForeground(dc);
+            gameStarsLabel.setText(selectedDifficulty.getStars());
+            gameStarsLabel.setForeground(dc);
+            gameInfoLabel.setText(buildStatsText(selectedDifficulty));
+            startGame();
+            cardLayout.show(mainPanel, "GAME");
+        });
+        menu.addActionListener(e -> returnToMainMenu());
+        quit.addActionListener(e -> dispose());
+
+        panel.add(title);
+        panel.add(Box.createVerticalStrut(18));
+        panel.add(permadeath);
+        panel.add(Box.createVerticalStrut(8));
+        panel.add(gameOverStatsLabel);
+        panel.add(Box.createVerticalStrut(26));
+        panel.add(createPixelDivider());
+        panel.add(Box.createVerticalStrut(24));
+        panel.add(retry);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(menu);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(quit);
+        return panel;
+    }
+
     // Callback method called by Generator when player wants to return to main menu
     public void returnToMainMenu() {
         if (gamePanel != null) {
@@ -243,9 +297,9 @@ public class SpielUI extends JFrame {
             gamePanel = null;
         }
         currentLevel = 1;
-        updateHintergrundForLevel(1);
+        updateBackgroundForLevel(1);
         gameContainer.removeAll();
-        JLabel placeholder = erstelleLabel("Klicke auf Spiel starten, um das Level zu laden.", 18, TEXT_MUTED, Font.PLAIN);
+        JLabel placeholder = createLabel("Click Start Game to load the level.", 18, TEXT_MUTED, Font.PLAIN);
         placeholder.setHorizontalAlignment(SwingConstants.CENTER);
         gameContainer.add(placeholder, BorderLayout.CENTER);
         gameContainer.revalidate();
@@ -255,11 +309,32 @@ public class SpielUI extends JFrame {
         cardLayout.show(mainPanel, "MENU");
     }
 
-    // Update the HintergrundPanel background image for the given level
-    private void updateHintergrundForLevel(int level) {
+    public void showGameOver(int reachedLevel) {
+        if (gamePanel != null) {
+            gamePanel.timer.stop();
+            gamePanel = null;
+        }
+        currentLevel = 1;
+        updateBackgroundForLevel(1);
+        if (gameOverStatsLabel != null) {
+            gameOverStatsLabel.setText("Reached level " + reachedLevel + " on " + selectedDifficulty.getDisplayName());
+        }
+        gameContainer.removeAll();
+        JLabel placeholder = createLabel("Click Start Game to load the level.", 18, TEXT_MUTED, Font.PLAIN);
+        placeholder.setHorizontalAlignment(SwingConstants.CENTER);
+        gameContainer.add(placeholder, BorderLayout.CENTER);
+        gameContainer.revalidate();
+        gameContainer.repaint();
+        infoPanel.setVisible(true);
+        setExtendedState(JFrame.NORMAL);
+        cardLayout.show(mainPanel, "GAME_OVER");
+    }
+
+    // Update the BackgroundPanel background image for the given level
+    private void updateBackgroundForLevel(int level) {
         Component cp = getContentPane();
-        if (cp instanceof HintergrundPanel) {
-            ((HintergrundPanel) cp).setBackgroundForLevel(level);
+        if (cp instanceof BackgroundPanel) {
+            ((BackgroundPanel) cp).setBackgroundForLevel(level);
             cp.repaint();
         }
     }
@@ -268,17 +343,19 @@ public class SpielUI extends JFrame {
     public void advanceToNextLevel() {
         currentLevel++;
         if (currentLevel > 7) {
-            currentLevel = 1; // Loop back to level 1 after level 7
+            JOptionPane.showMessageDialog(this, "You reached heaven. Run complete.");
+            returnToMainMenu();
+            return;
         }
 
-        // Update the SpielUI background panel to match the new level
-        updateHintergrundForLevel(currentLevel);
+        // Update the GameUI background panel to match the new level
+        updateBackgroundForLevel(currentLevel);
 
         // Load the next background image
         Image nextBackground = loadBackgroundForLevel(currentLevel);
         
         // Create a new generator for the next level
-        gamePanel = new Generator(nextBackground, currentLevel, this);
+        gamePanel = new Generator(nextBackground, currentLevel, selectedDifficulty, this);
         gamePanel.setPreferredSize(new Dimension(getWidth(), getHeight()));
         gamePanel.setFocusable(true);
 
@@ -320,9 +397,8 @@ public class SpielUI extends JFrame {
         return null;
     }
 
-    // ── Beenden-Dialog ────────────────────────────────────────────────────────
-    private void zeigeBeendenDialog() {
-        JDialog dialog = new JDialog(this, "Beenden?", true);
+    private void showQuitDialog() {
+        JDialog dialog = new JDialog(this, "Quit?", true);
         dialog.setUndecorated(true);
         dialog.setSize(320, 200);
         dialog.setLocationRelativeTo(this);
@@ -343,24 +419,24 @@ public class SpielUI extends JFrame {
         dlgPanel.setLayout(new BoxLayout(dlgPanel, BoxLayout.Y_AXIS));
         dlgPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 24, 30));
 
-        JLabel frage = erstelleLabel("Spiel wirklich beenden?", 12, TEXT_LIGHT, Font.BOLD);
-        frage.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel question = createLabel("Really quit the game?", 12, TEXT_LIGHT, Font.BOLD);
+        question.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 0));
         btnRow.setOpaque(false);
         btnRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JButton ja   = erstelleButton("Ja",   RED_QUIT);
-        JButton nein = erstelleButton("Nein", TEXT_MUTED);
-        ja.setPreferredSize(new Dimension(110, 44));
-        nein.setPreferredSize(new Dimension(110, 44));
+        JButton yes = createButton("Yes", RED_QUIT);
+        JButton no = createButton("No", TEXT_MUTED);
+        yes.setPreferredSize(new Dimension(110, 44));
+        no.setPreferredSize(new Dimension(110, 44));
 
-        ja.addActionListener(e -> { dialog.dispose(); dispose(); });
-        nein.addActionListener(e -> dialog.dispose());
+        yes.addActionListener(e -> { dialog.dispose(); dispose(); });
+        no.addActionListener(e -> dialog.dispose());
 
-        btnRow.add(ja);
-        btnRow.add(nein);
-        dlgPanel.add(frage);
+        btnRow.add(yes);
+        btnRow.add(no);
+        dlgPanel.add(question);
         dlgPanel.add(Box.createVerticalStrut(28));
         dlgPanel.add(btnRow);
 
@@ -368,33 +444,32 @@ public class SpielUI extends JFrame {
         dialog.setVisible(true);
     }
 
-    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
-    private String buildStatsText(Schwierigkeit s) {
-        return "Leben: " + s.getLeben()
-             + "  |  Speed: " + s.getGeschwindigkeit()
-             + "  |  Bonus: +" + s.getZeitBonus() + "s";
+    private String buildStatsText(Difficulty s) {
+        return "Lives: " + s.getLives()
+             + "  |  Speed: " + s.getSpeed()
+             + "  |  Bonus: +" + s.getTimeBonus() + "s";
     }
 
-    private JLabel erstelleLabel(String text, int size, Color farbe, int style) {
+    private JLabel createLabel(String text, int size, Color color, int style) {
         JLabel l = new JLabel(text, SwingConstants.CENTER);
         l.setFont(new Font("Monospaced", style, size));
-        l.setForeground(farbe);
+        l.setForeground(color);
         return l;
     }
 
-    private JButton erstelleButton(String text, Color farbe) {
+    private JButton createButton(String text, Color color) {
         JButton btn = new JButton(text) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 if (getModel().isPressed())
-                    g2.setColor(farbe.darker().darker());
+                    g2.setColor(color.darker().darker());
                 else if (getModel().isRollover())
-                    g2.setColor(new Color(farbe.getRed(), farbe.getGreen(), farbe.getBlue(), 28));
+                    g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 28));
                 else
                     g2.setColor(new Color(0, 0, 0, 0));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                g2.setColor(farbe);
+                g2.setColor(color);
                 g2.setStroke(new BasicStroke(1.5f));
                 g2.drawRoundRect(1, 1, getWidth()-2, getHeight()-2, 8, 8);
                 g2.dispose();
@@ -402,7 +477,7 @@ public class SpielUI extends JFrame {
             }
         };
         btn.setFont(new Font("Monospaced", Font.BOLD, 11));
-        btn.setForeground(farbe);
+        btn.setForeground(color);
         btn.setOpaque(false);
         btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
@@ -413,19 +488,19 @@ public class SpielUI extends JFrame {
         return btn;
     }
 
-    private JToggleButton erstelleToggleButton(String text, Color farbe) {
+    private JToggleButton createToggleButton(String text, Color color) {
         JToggleButton tb = new JToggleButton(text) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 if (isSelected())
-                    g2.setColor(new Color(farbe.getRed(), farbe.getGreen(), farbe.getBlue(), 40));
+                    g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 40));
                 else if (getModel().isRollover())
-                    g2.setColor(new Color(farbe.getRed(), farbe.getGreen(), farbe.getBlue(), 15));
+                    g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 15));
                 else
                     g2.setColor(new Color(0, 0, 0, 0));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                g2.setColor(isSelected() ? farbe : TEXT_MUTED);
+                g2.setColor(isSelected() ? color : TEXT_MUTED);
                 g2.setStroke(new BasicStroke(isSelected() ? 2f : 1f));
                 g2.drawRoundRect(1, 1, getWidth()-2, getHeight()-2, 8, 8);
                 g2.dispose();
@@ -433,7 +508,7 @@ public class SpielUI extends JFrame {
             }
         };
         tb.setFont(new Font("Monospaced", Font.BOLD, 10));
-        tb.setForeground(farbe);
+        tb.setForeground(color);
         tb.setOpaque(false);
         tb.setContentAreaFilled(false);
         tb.setBorderPainted(false);
@@ -443,7 +518,7 @@ public class SpielUI extends JFrame {
         return tb;
     }
 
-    private JPanel erstellePixelDivider() {
+    private JPanel createPixelDivider() {
         JPanel d = new JPanel() {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
@@ -459,11 +534,11 @@ public class SpielUI extends JFrame {
         return d;
     }
 
-    // ── Hintergrund mit Scanlines + Ecken ─────────────────────────────────────
-    class HintergrundPanel extends JPanel {
+    // Background with scanlines and corner markers
+    class BackgroundPanel extends JPanel {
         private Image backgroundImage;
 
-        HintergrundPanel() {
+        BackgroundPanel() {
             setOpaque(true);
             setBackground(BG_DARK);
             loadBackgroundImage();
@@ -530,6 +605,6 @@ public class SpielUI extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(SpielUI::new);
+        SwingUtilities.invokeLater(GameUI::new);
     }
 }

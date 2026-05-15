@@ -1,15 +1,14 @@
-
 import java.awt.*;
 import javax.swing.*;
 
-public class Hintergrund extends JPanel {
+public class Background extends JPanel {
 
     private Image backgroundImage;
 
-    public Hintergrund() {
+    public Background() {
         ImageIcon icon = new ImageIcon("e.png");
         backgroundImage = icon.getImage();
-        setLayout(null); // wichtig!
+        setLayout(null);
     }
 
     @Override
