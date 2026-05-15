@@ -25,13 +25,24 @@ public class Boss {
     private double velocityX;
     private double velocityY;
     private boolean facingRight;
+    private boolean onGround;
+    private int stuckFrames;
+    private int worldWidth;
+    private int worldHeight;
+    private int minX;
+    private int maxX;
 
-    public Boss(int x, int y, int level, Difficulty difficulty, ArrayList<Rectangle> tiles) {
+    public Boss(int x, int y, int level, Difficulty difficulty, ArrayList<Rectangle> tiles,
+                int worldWidth, int worldHeight, int minX, int maxX) {
         this.x = x;
         this.y = y;
         this.level = level;
         this.difficulty = difficulty;
         this.tiles = tiles;
+        this.worldWidth = worldWidth;
+        this.worldHeight = worldHeight;
+        this.minX = minX;
+        this.maxX = maxX;
         maxHealth = 95 + level * 18 + difficulty.getLevel() * 35;
         health = maxHealth;
         contactDamage = 7 + difficulty.getLevel() * 3;
@@ -52,6 +63,10 @@ public class Boss {
 
         int distance = Math.abs(playerCenter - bossCenter);
         double speed = 2.1 + difficulty.getLevel() * 0.75 + level * 0.12;
+        int direction = facingRight ? 1 : -1;
+        boolean safeTowardPlayer = canMoveInDirection(direction);
+        boolean safeAwayFromPlayer = canMoveInDirection(-direction);
+        boolean playerAbove = playerBounds.y + playerBounds.height < y - 18;
 
         rangedShotReady = false;
 
@@ -64,33 +79,60 @@ public class Boss {
         } else if (windupFrames > 0) {
             windupFrames--;
             velocityX *= 0.82;
+            if (!safeTowardPlayer) {
+                windupFrames = 0;
+                attackCooldownFrames = 24;
+                velocityX = 0;
+            }
             if (windupFrames == 0) {
                 attackFrames = 13 + difficulty.getLevel() * 2;
-                velocityX = facingRight ? speed * 4.5 : -speed * 4.5;
+                velocityX = safeTowardPlayer ? direction * speed * 4.5 : 0;
             }
         } else if (attackFrames > 0) {
             attackFrames--;
         } else if (distance < 130 && attackCooldownFrames == 0) {
             windupFrames = Math.max(10, 28 - difficulty.getLevel() * 5);
             attackCooldownFrames = Math.max(34, 82 - difficulty.getLevel() * 13 - level * 2);
-        } else if (distance < 650 && rangedCooldownFrames == 0) {
+        } else if ((distance < 650 || !safeTowardPlayer) && rangedCooldownFrames == 0) {
             rangedWindupFrames = Math.max(14, 34 - difficulty.getLevel() * 4);
             rangedCooldownFrames = Math.max(45, 110 - difficulty.getLevel() * 17 - level * 3);
         } else {
-            if (distance > 58) {
-                velocityX += facingRight ? 0.38 : -0.38;
+            if (distance < 70 && safeAwayFromPlayer) {
+                velocityX += -direction * 0.46;
+            } else if (distance > 78 && safeTowardPlayer) {
+                velocityX += direction * 0.38;
             } else {
                 velocityX *= 0.78;
             }
             if (velocityX > speed) velocityX = speed;
             if (velocityX < -speed) velocityX = -speed;
+
+            if (playerAbove && onGround && Math.abs(playerCenter - bossCenter) < 180) {
+                velocityY = -14;
+                onGround = false;
+            }
+        }
+
+        if (!canMoveInDirection(velocityX > 0 ? 1 : -1)) {
+            velocityX = 0;
         }
 
         velocityY += 1.0;
         if (velocityY > 18) velocityY = 18;
 
+        int oldX = x;
         moveX();
         moveY();
+
+        if (Math.abs(x - oldX) < 1 && Math.abs(velocityX) > 0.2) {
+            stuckFrames++;
+            if (stuckFrames > 18 && onGround) {
+                velocityY = -12;
+                stuckFrames = 0;
+            }
+        } else {
+            stuckFrames = 0;
+        }
     }
 
     private void moveX() {
@@ -107,22 +149,75 @@ public class Boss {
                 bounds = getBounds();
             }
         }
+        clampXToWorld();
     }
 
     private void moveY() {
         y += Math.round(velocityY);
         Rectangle bounds = getBounds();
+        onGround = false;
         for (Rectangle tile : tiles) {
             if (bounds.intersects(tile)) {
                 if (velocityY > 0) {
                     y = tile.y - height;
                     velocityY = 0;
+                    onGround = true;
                 } else if (velocityY < 0) {
                     y = tile.y + tile.height;
                     velocityY = 0;
                 }
                 bounds = getBounds();
             }
+        }
+        clampYToWorld();
+    }
+
+    private boolean canMoveInDirection(int direction) {
+        if (direction == 0) return true;
+        if ((direction < 0 && x <= minX) || (direction > 0 && x + width >= maxX)) {
+            return false;
+        }
+        Rectangle nextBody = new Rectangle(x + direction * 10, y, width, height);
+        for (Rectangle tile : tiles) {
+            if (nextBody.intersects(tile)) {
+                return false;
+            }
+        }
+        return hasGroundAhead(direction);
+    }
+
+    private boolean hasGroundAhead(int direction) {
+        int probeX = direction > 0 ? x + width + 6 : x - 24;
+        Rectangle probe = new Rectangle(probeX, y + height + 2, 24, 70);
+        for (Rectangle tile : tiles) {
+            if (probe.intersects(tile)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void clampXToWorld() {
+        int leftLimit = Math.max(0, minX);
+        int rightLimit = Math.max(leftLimit, Math.min(worldWidth, maxX) - width);
+        if (x < leftLimit) {
+            x = leftLimit;
+            velocityX = Math.max(0, velocityX);
+        } else if (x > rightLimit) {
+            x = rightLimit;
+            velocityX = Math.min(0, velocityX);
+        }
+    }
+
+    private void clampYToWorld() {
+        int maxY = Math.max(0, worldHeight - height);
+        if (y < 0) {
+            y = 0;
+            velocityY = Math.max(0, velocityY);
+        } else if (y > maxY) {
+            y = maxY;
+            velocityY = 0;
+            onGround = true;
         }
     }
 

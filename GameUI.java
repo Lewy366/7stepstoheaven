@@ -108,8 +108,10 @@ public class GameUI extends JFrame {
         }
 
         JButton btnStart = createButton("Start Game", GREEN_START);
+        JButton btnControls = createButton("Controls", YELLOW);
         JButton btnQuit = createButton("Quit", RED_QUIT);
         btnStart.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btnControls.setAlignmentX(Component.CENTER_ALIGNMENT);
         btnQuit.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         btnStart.addActionListener(e -> {
@@ -122,6 +124,7 @@ public class GameUI extends JFrame {
             startGame();
             cardLayout.show(mainPanel, "GAME");
         });
+        btnControls.addActionListener(e -> showControlsDialog());
         btnQuit.addActionListener(e -> showQuitDialog());
 
         panel.add(version);
@@ -145,6 +148,8 @@ public class GameUI extends JFrame {
         panel.add(createPixelDivider());
         panel.add(Box.createVerticalStrut(18));
         panel.add(btnStart);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(btnControls);
         panel.add(Box.createVerticalStrut(12));
         panel.add(btnQuit);
 
@@ -442,6 +447,119 @@ public class GameUI extends JFrame {
 
         dialog.setContentPane(dlgPanel);
         dialog.setVisible(true);
+    }
+
+    private void showControlsDialog() {
+        JDialog dialog = new JDialog(this, "Controls", true);
+        dialog.setUndecorated(true);
+        dialog.setSize(460, 560);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel dlgPanel = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(18, 18, 30));
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 16, 16));
+                g2.setColor(YELLOW);
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.draw(new RoundRectangle2D.Float(1, 1, getWidth()-2, getHeight()-2, 16, 16));
+                g2.dispose();
+            }
+        };
+        dlgPanel.setOpaque(false);
+        dlgPanel.setLayout(new BoxLayout(dlgPanel, BoxLayout.Y_AXIS));
+        dlgPanel.setBorder(BorderFactory.createEmptyBorder(26, 34, 24, 34));
+
+        JLabel title = createLabel("CHANGE COMMANDS", 16, YELLOW, Font.BOLD);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        dlgPanel.add(title);
+        dlgPanel.add(Box.createVerticalStrut(18));
+
+        JButton[] bindingButtons = new JButton[Controls.getActionCount()];
+        for (int i = 0; i < Controls.getActionCount(); i++) {
+            int action = i;
+            JPanel row = new JPanel(new BorderLayout(16, 0));
+            row.setOpaque(false);
+            row.setMaximumSize(new Dimension(380, 42));
+
+            JLabel actionLabel = createLabel(Controls.getActionName(action), 12, TEXT_LIGHT, Font.BOLD);
+            actionLabel.setHorizontalAlignment(SwingConstants.LEFT);
+
+            JButton keyButton = createButton(Controls.getBindingText(action), ACCENT_BLUE);
+            keyButton.setPreferredSize(new Dimension(150, 38));
+            keyButton.setMaximumSize(new Dimension(150, 38));
+            keyButton.addActionListener(e -> {
+                captureControlKey(dialog, action);
+                for (int j = 0; j < bindingButtons.length; j++) {
+                    bindingButtons[j].setText(Controls.getBindingText(j));
+                }
+            });
+            bindingButtons[action] = keyButton;
+
+            row.add(actionLabel, BorderLayout.CENTER);
+            row.add(keyButton, BorderLayout.EAST);
+            dlgPanel.add(row);
+            dlgPanel.add(Box.createVerticalStrut(8));
+        }
+
+        dlgPanel.add(Box.createVerticalStrut(10));
+
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        btnRow.setOpaque(false);
+        JButton reset = createButton("Reset", TEXT_MUTED);
+        JButton done = createButton("Done", GREEN_START);
+        reset.setPreferredSize(new Dimension(130, 42));
+        done.setPreferredSize(new Dimension(130, 42));
+        reset.addActionListener(e -> {
+            Controls.resetDefaults();
+            for (int i = 0; i < bindingButtons.length; i++) {
+                bindingButtons[i].setText(Controls.getBindingText(i));
+            }
+        });
+        done.addActionListener(e -> dialog.dispose());
+        btnRow.add(reset);
+        btnRow.add(done);
+        dlgPanel.add(btnRow);
+
+        dialog.setContentPane(dlgPanel);
+        dialog.setVisible(true);
+    }
+
+    private void captureControlKey(JDialog parent, int action) {
+        JDialog capture = new JDialog(parent, "Press Input", true);
+        capture.setUndecorated(true);
+        capture.setSize(320, 150);
+        capture.setLocationRelativeTo(parent);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(18, 18, 30));
+        panel.setBorder(BorderFactory.createLineBorder(ACCENT_BLUE, 2));
+
+        JLabel label = createLabel("Press key or click for " + Controls.getActionName(action), 12, TEXT_LIGHT, Font.BOLD);
+        panel.add(label, BorderLayout.CENTER);
+        JLabel hint = createLabel("ESC cancels", 10, TEXT_MUTED, Font.PLAIN);
+        panel.add(hint, BorderLayout.SOUTH);
+
+        capture.addKeyListener(new KeyAdapter() {
+            @Override public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() != KeyEvent.VK_ESCAPE) {
+                    Controls.setKeyBinding(action, e.getKeyCode());
+                }
+                capture.dispose();
+            }
+        });
+        MouseAdapter mouseCapture = new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                Controls.setMouseBinding(action, e.getButton());
+                capture.dispose();
+            }
+        };
+        capture.addMouseListener(mouseCapture);
+        panel.addMouseListener(mouseCapture);
+        capture.setContentPane(panel);
+        SwingUtilities.invokeLater(capture::requestFocusInWindow);
+        capture.setVisible(true);
     }
 
     private String buildStatsText(Difficulty s) {

@@ -44,6 +44,8 @@ public class Player {
 
     private int maxHealth;
     private int health;
+    private int worldWidth;
+    private int worldHeight;
 
     ArrayList<Rectangle> tiles;
 
@@ -51,33 +53,67 @@ public class Player {
         @Override
         public void keyPressed(KeyEvent e) {
             int key = e.getKeyCode();
-            if (key == KeyEvent.VK_A || key == KeyEvent.VK_LEFT) leftPressed = true;
-            if (key == KeyEvent.VK_D || key == KeyEvent.VK_RIGHT) rightPressed = true;
-            if (key == KeyEvent.VK_S || key == KeyEvent.VK_DOWN) duckPressed = true;
-            if ((key == KeyEvent.VK_SPACE || key == KeyEvent.VK_W || key == KeyEvent.VK_UP) && !jumpHeld) {
+            if (Controls.matchesKey(Controls.MOVE_LEFT, key)) leftPressed = true;
+            if (Controls.matchesKey(Controls.MOVE_RIGHT, key)) rightPressed = true;
+            if (Controls.matchesKey(Controls.DUCK, key)) duckPressed = true;
+            if (Controls.matchesKey(Controls.JUMP, key) && !jumpHeld) {
                 jumpBufferFrames = 8;
                 jumpHeld = true;
             }
-            if (key == KeyEvent.VK_SHIFT && dashCooldownFrames == 0) dashPressed = true;
-            if (key == KeyEvent.VK_F || key == KeyEvent.VK_J) attackPressed = true;
-            if (key == KeyEvent.VK_E || key == KeyEvent.VK_K) shootPressed = true;
+            if (Controls.matchesKey(Controls.DASH, key) && dashCooldownFrames == 0) dashPressed = true;
+            if (Controls.matchesKey(Controls.MELEE, key)) attackPressed = true;
+            if (Controls.matchesKey(Controls.SHOOT, key)) shootPressed = true;
         }
 
         @Override
         public void keyReleased(KeyEvent e) {
             int key = e.getKeyCode();
-            if (key == KeyEvent.VK_A || key == KeyEvent.VK_LEFT) leftPressed = false;
-            if (key == KeyEvent.VK_D || key == KeyEvent.VK_RIGHT) rightPressed = false;
-            if (key == KeyEvent.VK_S || key == KeyEvent.VK_DOWN) duckPressed = false;
-            if (key == KeyEvent.VK_SPACE || key == KeyEvent.VK_W || key == KeyEvent.VK_UP) jumpHeld = false;
+            if (Controls.matchesKey(Controls.MOVE_LEFT, key)) leftPressed = false;
+            if (Controls.matchesKey(Controls.MOVE_RIGHT, key)) rightPressed = false;
+            if (Controls.matchesKey(Controls.DUCK, key)) duckPressed = false;
+            if (Controls.matchesKey(Controls.JUMP, key)) jumpHeld = false;
         }
     };
 
-    public Player(ArrayList<Rectangle> tiles, Difficulty difficulty) {
+    MouseAdapter mouseAdapter = new MouseAdapter() {
+        @Override
+        public void mousePressed(MouseEvent e) {
+            int button = e.getButton();
+            if (Controls.matchesMouse(Controls.MOVE_LEFT, button)) leftPressed = true;
+            if (Controls.matchesMouse(Controls.MOVE_RIGHT, button)) rightPressed = true;
+            if (Controls.matchesMouse(Controls.DUCK, button)) duckPressed = true;
+            if (Controls.matchesMouse(Controls.JUMP, button) && !jumpHeld) {
+                jumpBufferFrames = 8;
+                jumpHeld = true;
+            }
+            if (Controls.matchesMouse(Controls.DASH, button) && dashCooldownFrames == 0) dashPressed = true;
+            if (Controls.matchesMouse(Controls.MELEE, button)) attackPressed = true;
+            if (Controls.matchesMouse(Controls.SHOOT, button)) shootPressed = true;
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            int button = e.getButton();
+            if (Controls.matchesMouse(Controls.MOVE_LEFT, button)) leftPressed = false;
+            if (Controls.matchesMouse(Controls.MOVE_RIGHT, button)) rightPressed = false;
+            if (Controls.matchesMouse(Controls.DUCK, button)) duckPressed = false;
+            if (Controls.matchesMouse(Controls.JUMP, button)) jumpHeld = false;
+        }
+    };
+
+    public Player(ArrayList<Rectangle> tiles, Difficulty difficulty, int worldWidth, int worldHeight) {
         this.tiles = tiles;
+        this.worldWidth = worldWidth;
+        this.worldHeight = worldHeight;
         maxHealth = 110 - difficulty.getLevel() * 10;
         health = maxHealth;
         maxMoveSpeed = 6.5 + difficulty.getSpeed() * 0.45;
+    }
+
+    public void setWorldBounds(int worldWidth, int worldHeight) {
+        this.worldWidth = worldWidth;
+        this.worldHeight = worldHeight;
+        clampToWorld();
     }
 
     public void update() {
@@ -102,6 +138,16 @@ public class Player {
         } else if (coyoteFrames > 0) {
             coyoteFrames--;
         }
+    }
+
+    public void resetInputState() {
+        leftPressed = false;
+        rightPressed = false;
+        duckPressed = false;
+        jumpHeld = false;
+        dashPressed = false;
+        attackPressed = false;
+        shootPressed = false;
     }
 
     private void tickTimers() {
@@ -173,6 +219,7 @@ public class Player {
                 player = getBounds();
             }
         }
+        clampXToWorld();
     }
 
     private void moveY() {
@@ -192,6 +239,39 @@ public class Player {
                 }
                 player = getBounds();
             }
+        }
+        clampYToWorld();
+    }
+
+    private void clampToWorld() {
+        clampXToWorld();
+        clampYToWorld();
+    }
+
+    private void clampXToWorld() {
+        if (worldWidth <= 0) return;
+        int maxX = Math.max(0, worldWidth - getWidth());
+        if (playerX < 0) {
+            playerX = 0;
+            velocityX = Math.max(0, velocityX);
+        } else if (playerX > maxX) {
+            playerX = maxX;
+            velocityX = Math.min(0, velocityX);
+        }
+    }
+
+    private void clampYToWorld() {
+        if (worldHeight <= 0) return;
+        Rectangle bounds = getBounds();
+        int minY = -(STANDING_HEIGHT - getHeight());
+        int maxY = Math.max(minY, worldHeight - bounds.height - (STANDING_HEIGHT - getHeight()));
+        if (playerY < minY) {
+            playerY = minY;
+            velocityY = Math.max(0, velocityY);
+        } else if (playerY > maxY) {
+            playerY = maxY;
+            velocityY = 0;
+            onGround = true;
         }
     }
 

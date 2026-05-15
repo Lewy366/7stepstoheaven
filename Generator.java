@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.*;
 
-public class Generator extends JPanel implements ActionListener, KeyListener {
+public class Generator extends JPanel implements ActionListener, KeyListener, MouseListener {
 
     // --- Timer ---
     Timer timer = new Timer(16, this);
@@ -44,17 +44,8 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     private boolean isPaused = false;
     private int selectedMenuOption = 0; // 0=Resume, 1=Controls, 2=Menu, 3=Quit
     private boolean inControlsMenu = false;
-    private int selectedControlOption = 0; // 0=WASD, 1=Arrow Keys, etc. (placeholder)
-
-    // Movement control options (placeholder for future expansion)
-    private static final String[] MOVEMENT_CONTROLS = {
-        "Move: A/D or Arrow Keys",
-        "Jump: W/Space/Up",
-        "Duck: S/Down",
-        "Dash: Shift",
-        "Melee: F/J",
-        "Shoot: E/K"
-    };
+    private int selectedControlOption = 0;
+    private boolean waitingForControlKey = false;
 
     // Level names for the 7 levels (Hell to Heaven)
     private static final String[] LEVEL_NAMES = {
@@ -83,10 +74,11 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
         map  = generateMap(MAP_ROWS, MAP_COLS, seed);
         buildMap();
 
-        player = new Player(tiles, difficulty);
+        player = new Player(tiles, difficulty, getWorldWidth(), getWorldHeight());
         setupLevelEntities();
         addKeyListener(player.keyAdapter);
         addKeyListener(this);
+        addMouseListener(this);
 
         timer.start();
         System.out.println("Level " + currentLevel + ": " + LEVEL_NAMES[currentLevel - 1]);
@@ -98,41 +90,53 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     int[][] generateMap(int rows, int cols, long seed) {
         Random random = new Random(seed);
         int[][] newMap = new int[rows][cols];
+        int floorRow = rows - 3;
+        int arenaStart = Math.max(8, cols - 12);
 
-        for (int row = rows - 3; row < rows; row++) {
+        for (int row = floorRow; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
                 newMap[row][col] = 1;
             }
         }
 
-        int platformCount = random.nextInt(10) + 10;
+        clearArea(newMap, 0, 0, 6, floorRow);
+        clearArea(newMap, arenaStart, 0, cols - arenaStart, floorRow);
 
-        for (int i = 0; i < platformCount; i++) {
-            int platformLength = random.nextInt(5) + 3;
-            int row = random.nextInt(rows - 5) + 1;
-            int col = random.nextInt(cols - platformLength);
+        int platformRow = floorRow - 5 - random.nextInt(3);
+        for (int col = 5; col < arenaStart - 5; col += 5 + random.nextInt(3)) {
+            int length = 3 + random.nextInt(3);
+            platformRow += random.nextInt(5) - 2;
+            platformRow = Math.max(4, Math.min(floorRow - 5, platformRow));
+            addPlatform(newMap, platformRow, col, Math.min(length, arenaStart - col - 2));
+        }
 
-            for (int j = 0; j < platformLength; j++) {
-                newMap[row][col + j] = 1;
+        int bridgeRow = floorRow - 7;
+        for (int col = 8; col < arenaStart - 8; col += 10) {
+            addPlatform(newMap, bridgeRow, col, 4);
+        }
+
+        clearArea(newMap, 0, 0, 5, floorRow);
+        clearArea(newMap, arenaStart, 0, cols - arenaStart, floorRow);
+        clearArea(newMap, cols - 4, 0, 4, floorRow);
+        return newMap;
+    }
+
+    private void addPlatform(int[][] targetMap, int row, int startCol, int length) {
+        if (length <= 0 || row < 0 || row >= targetMap.length) return;
+        int endCol = Math.min(targetMap[row].length, startCol + length);
+        for (int col = Math.max(0, startCol); col < endCol; col++) {
+            targetMap[row][col] = 1;
+        }
+    }
+
+    private void clearArea(int[][] targetMap, int startCol, int startRow, int width, int height) {
+        int endRow = Math.min(targetMap.length, startRow + height);
+        for (int row = Math.max(0, startRow); row < endRow; row++) {
+            int endCol = Math.min(targetMap[row].length, startCol + width);
+            for (int col = Math.max(0, startCol); col < endCol; col++) {
+                targetMap[row][col] = 0;
             }
         }
-
-        int arenaStart = Math.max(8, cols - 11);
-        for (int col = arenaStart; col < cols; col++) {
-            newMap[rows - 4][col] = 0;
-            newMap[rows - 5][col] = 0;
-        }
-        for (int col = arenaStart + 1; col < cols - 1; col++) {
-            newMap[rows - 8][col] = 0;
-        }
-        for (int col = arenaStart + 2; col < cols - 2; col++) {
-            newMap[rows - 9][col] = 0;
-        }
-        for (int col = arenaStart + 2; col < arenaStart + 6 && col < cols; col++) {
-            newMap[rows - 10][col] = 1;
-        }
-
-        return newMap;
     }
 
     // -------------------------------------------------------
@@ -154,31 +158,14 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
         }
     }
 
-    // -------------------------------------------------------
-    // NEW MAP
-    // -------------------------------------------------------
-    void regenerateMap() {
-        seed = System.currentTimeMillis();
-        map  = generateMap(MAP_ROWS, MAP_COLS, seed);
-        buildMap();
-
-        player.playerX   = 100;
-        player.playerY   = 250;
-        player.velocityY = 0;
-        player.velocityX = 0;
-        portalOpened = false;
-        projectiles.clear();
-        setupLevelEntities();
-
-        System.out.println("New map! Seed: " + seed);
-    }
-
     private void setupLevelEntities() {
         healingItems.clear();
 
         int floorY = (MAP_ROWS - 3) * TILE_SIZE;
+        int arenaStart = Math.max(8, MAP_COLS - 12);
         int bossX = (MAP_COLS - 7) * TILE_SIZE;
-        boss = new Boss(bossX, floorY - 86, currentLevel, difficulty, tiles);
+        boss = new Boss(bossX, floorY - 86, currentLevel, difficulty, tiles,
+                getWorldWidth(), getWorldHeight(), arenaStart * TILE_SIZE, getWorldWidth());
         portal = new Portal((MAP_COLS - 2) * TILE_SIZE, floorY - 100);
 
         int healAmount = 22 - difficulty.getLevel() * 3;
@@ -347,7 +334,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
         // Debug info at bottom left
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        g2.drawString("A/D move | W/SPACE jump | S duck | SHIFT dash | F melee | E shoot | R new map | ESC pause", 10, getHeight() - 10);
+        g2.drawString(Controls.getShortSummary(), 10, getHeight() - 10);
 
         // Draw pause menu if paused
         if (isPaused) {
@@ -438,39 +425,52 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     }
 
     private void drawControlsMenu(Graphics2D g2, int centerX, int centerY) {
-        String[] controls = MOVEMENT_CONTROLS;
+        int optionCount = Controls.getActionCount() + 1;
         
         // Title
         g2.setColor(new Color(255, 200, 0));
         g2.setFont(new Font("Monospaced", Font.BOLD, 48));
-        String title = "MOVEMENT CONTROLS";
+        String title = "CHANGE COMMANDS";
         FontMetrics fm = g2.getFontMetrics();
         int titleX = centerX - fm.stringWidth(title) / 2;
         g2.drawString(title, titleX, centerY - 150);
 
         // Control options
-        int startY = centerY - 20;
-        int spacing = 70;
+        int startY = centerY - 70;
+        int spacing = 46;
 
-        for (int i = 0; i < controls.length; i++) {
-            g2.setFont(new Font("Monospaced", Font.BOLD, 24));
+        for (int i = 0; i < optionCount; i++) {
+            g2.setFont(new Font("Monospaced", Font.BOLD, 22));
             
             if (i == selectedControlOption) {
                 g2.setColor(new Color(58, 58, 255));
-                g2.fillRect(centerX - 200, startY + i * spacing - 25, 400, 50);
+                g2.fillRect(centerX - 260, startY + i * spacing - 28, 520, 42);
                 g2.setColor(new Color(10, 255, 110));
             } else {
                 g2.setColor(new Color(232, 232, 255));
             }
 
+            String option;
+            if (i < Controls.getActionCount()) {
+                option = Controls.getActionName(i) + ": " + Controls.getBindingText(i);
+                if (waitingForControlKey && i == selectedControlOption) {
+                    option = Controls.getActionName(i) + ": press key/click";
+                }
+            } else {
+                option = "Reset to Defaults";
+            }
             fm = g2.getFontMetrics();
-            int optionX = centerX - fm.stringWidth(controls[i]) / 2;
-            g2.drawString(controls[i], optionX, startY + i * spacing);
+            int optionX = centerX - fm.stringWidth(option) / 2;
+            g2.drawString(option, optionX, startY + i * spacing);
         }
 
         g2.setColor(new Color(106, 106, 154));
         g2.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        g2.drawString("Use UP/DOWN to select, ENTER to confirm, ESC to go back", centerX - 250, getHeight() - 40);
+        String help = waitingForControlKey
+                ? "Press a new key or mouse button for this command, or ESC to cancel"
+                : "Use UP/DOWN to select, ENTER to change, ESC to go back";
+        fm = g2.getFontMetrics();
+        g2.drawString(help, centerX - fm.stringWidth(help) / 2, getHeight() - 40);
     }
 
     // -------------------------------------------------------
@@ -478,10 +478,23 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     // -------------------------------------------------------
     @Override
     public void keyPressed(KeyEvent e) {
+        if (isPaused && inControlsMenu && waitingForControlKey) {
+            if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                waitingForControlKey = false;
+            } else if (selectedControlOption < Controls.getActionCount()) {
+                Controls.setBinding(selectedControlOption, e.getKeyCode());
+                player.resetInputState();
+                waitingForControlKey = false;
+            }
+            repaint();
+            return;
+        }
+
         // Handle pause menu
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
             if (inControlsMenu) {
                 inControlsMenu = false;
+                waitingForControlKey = false;
             } else {
                 isPaused = !isPaused;
             }
@@ -494,14 +507,21 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
             if (inControlsMenu) {
                 // Controls submenu navigation
                 if (e.getKeyCode() == KeyEvent.VK_UP) {
-                    selectedControlOption = (selectedControlOption - 1 + MOVEMENT_CONTROLS.length) % MOVEMENT_CONTROLS.length;
+                    int optionCount = Controls.getActionCount() + 1;
+                    selectedControlOption = (selectedControlOption - 1 + optionCount) % optionCount;
                     repaint();
                 } else if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-                    selectedControlOption = (selectedControlOption + 1) % MOVEMENT_CONTROLS.length;
+                    int optionCount = Controls.getActionCount() + 1;
+                    selectedControlOption = (selectedControlOption + 1) % optionCount;
                     repaint();
                 } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    // Apply selected control option (placeholder for future implementation)
-                    System.out.println("Selected controls: " + MOVEMENT_CONTROLS[selectedControlOption]);
+                    if (selectedControlOption < Controls.getActionCount()) {
+                        waitingForControlKey = true;
+                    } else {
+                        Controls.resetDefaults();
+                        player.resetInputState();
+                    }
+                    repaint();
                 }
             } else {
                 // Main pause menu navigation
@@ -517,9 +537,6 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
             }
             return;
         }
-
-        // Game controls (when not paused)
-        if (e.getKeyCode() == KeyEvent.VK_R) regenerateMap();
     }
 
     private void handleMenuSelection() {
@@ -547,4 +564,91 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
 
     @Override public void keyReleased(KeyEvent e) {}
     @Override public void keyTyped(KeyEvent e) {}
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+        requestFocusInWindow();
+        if (!isPaused) {
+            player.mouseAdapter.mousePressed(e);
+            return;
+        }
+
+        if (inControlsMenu && waitingForControlKey) {
+            if (selectedControlOption < Controls.getActionCount()) {
+                Controls.setMouseBinding(selectedControlOption, e.getButton());
+                player.resetInputState();
+            }
+            waitingForControlKey = false;
+            repaint();
+            return;
+        }
+
+        if (inControlsMenu) {
+            int clickedOption = getControlsMenuOptionAt(e.getX(), e.getY());
+            if (clickedOption >= 0) {
+                selectedControlOption = clickedOption;
+                if (clickedOption < Controls.getActionCount()) {
+                    waitingForControlKey = true;
+                } else {
+                    Controls.resetDefaults();
+                    player.resetInputState();
+                }
+                repaint();
+            }
+            return;
+        }
+
+        int clickedOption = getPauseMenuOptionAt(e.getX(), e.getY());
+        if (clickedOption >= 0) {
+            selectedMenuOption = clickedOption;
+            handleMenuSelection();
+        }
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+        if (!isPaused) {
+            player.mouseAdapter.mouseReleased(e);
+        }
+    }
+    @Override public void mouseClicked(MouseEvent e) {}
+    @Override public void mouseEntered(MouseEvent e) {}
+    @Override public void mouseExited(MouseEvent e) {}
+
+    private int getPauseMenuOptionAt(int mouseX, int mouseY) {
+        int centerX = getWidth() / 2;
+        int centerY = getHeight() / 2;
+        int startY = centerY - 20;
+        int spacing = 70;
+        for (int i = 0; i < 4; i++) {
+            Rectangle optionBounds = new Rectangle(centerX - 180, startY + i * spacing - 25, 360, 50);
+            if (optionBounds.contains(mouseX, mouseY)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int getControlsMenuOptionAt(int mouseX, int mouseY) {
+        int centerX = getWidth() / 2;
+        int centerY = getHeight() / 2;
+        int startY = centerY - 70;
+        int spacing = 46;
+        int optionCount = Controls.getActionCount() + 1;
+        for (int i = 0; i < optionCount; i++) {
+            Rectangle optionBounds = new Rectangle(centerX - 260, startY + i * spacing - 28, 520, 42);
+            if (optionBounds.contains(mouseX, mouseY)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int getWorldWidth() {
+        return MAP_COLS * TILE_SIZE;
+    }
+
+    private int getWorldHeight() {
+        return MAP_ROWS * TILE_SIZE;
+    }
 }
