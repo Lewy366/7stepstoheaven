@@ -1,3 +1,7 @@
+/**
+ * Difficulty stores all values that change how hard a run feels.
+ * The numeric level is also reused by enemies and player setup to scale stats.
+ */
 public enum Difficulty {
 
     EASY("Easy", 1, "Relaxed play", new int[]{3, 1, 5}),
@@ -12,6 +16,7 @@ public enum Difficulty {
     private final int timeBonus;
 
     Difficulty(String displayName, int level, String description, int[] values) {
+        // values: [lives shown in UI, player speed bonus, time bonus shown in UI]
         this.displayName = displayName;
         this.level = level;
         this.description = description;
@@ -27,6 +32,7 @@ public enum Difficulty {
     public int getSpeed() { return speed; }
     public int getTimeBonus() { return timeBonus; }
 
+    // Visual shorthand used in menus: more filled stars means harder.
     public String getStars() {
         return "★".repeat(level) + "☆".repeat(3 - level);
     }

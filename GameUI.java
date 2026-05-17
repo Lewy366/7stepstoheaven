@@ -3,6 +3,11 @@ import java.awt.event.*;
 import java.awt.geom.RoundRectangle2D;
 import javax.swing.*;
 
+/**
+ * Top-level window and screen manager.
+ * It builds the main menu, embeds the active Generator panel, and receives
+ * callbacks when the player dies, returns to menu, or advances levels.
+ */
 public class GameUI extends JFrame {
 
     // --- Colors ---
@@ -31,6 +36,7 @@ public class GameUI extends JFrame {
     private Image currentBackgroundImage;
 
     // Game-screen labels updated on start
+    // These labels live outside Generator and show the selected run settings.
     private JLabel gameInfoLabel;
     private JLabel gameStarsLabel;
     private JLabel gameDiffLabel;
@@ -48,6 +54,7 @@ public class GameUI extends JFrame {
         });
 
         cardLayout = new CardLayout();
+        // CardLayout swaps between MENU, GAME, and GAME_OVER without creating new windows.
         mainPanel  = new JPanel(cardLayout);
         mainPanel.setOpaque(false);
 
@@ -63,6 +70,7 @@ public class GameUI extends JFrame {
     }
 
     private JPanel createMainMenu() {
+        // Main menu lets the player choose difficulty before creating a level.
         JPanel panel = new JPanel();
         panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -99,6 +107,7 @@ public class GameUI extends JFrame {
             group.add(tb);
             diffRow.add(tb);
             tb.addActionListener(e -> {
+                // Keep all difficulty preview text synced with the selected toggle.
                 selectedDifficulty = s;
                 descriptionLabel.setText(s.getDescription());
                 starsLabel.setText(s.getStars());
@@ -115,6 +124,7 @@ public class GameUI extends JFrame {
         btnQuit.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         btnStart.addActionListener(e -> {
+            // Copy difficulty info into the side panel before the game goes fullscreen.
             Color dc = DIFF_COLORS[selectedDifficulty.getLevel() - 1];
             gameDiffLabel.setText(selectedDifficulty.getDisplayName().toUpperCase());
             gameDiffLabel.setForeground(dc);
@@ -214,6 +224,7 @@ public class GameUI extends JFrame {
     private void startGame() {
         currentLevel = 1;
         updateBackgroundForLevel(currentLevel);
+        // Nulling the panel forces startCurrentLevel to create a fresh run.
         gamePanel = null;
         startCurrentLevel();
     }
@@ -247,6 +258,7 @@ public class GameUI extends JFrame {
     }
 
     private JPanel createGameOverView() {
+        // This card is shown when Generator reports that the player died.
         JPanel panel = new JPanel();
         panel.setOpaque(false);
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -267,6 +279,7 @@ public class GameUI extends JFrame {
         quit.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         retry.addActionListener(e -> {
+            // Restart keeps the selected difficulty and begins again at level 1.
             Color dc = DIFF_COLORS[selectedDifficulty.getLevel() - 1];
             gameDiffLabel.setText(selectedDifficulty.getDisplayName().toUpperCase());
             gameDiffLabel.setForeground(dc);
@@ -298,6 +311,7 @@ public class GameUI extends JFrame {
     // Callback method called by Generator when player wants to return to main menu
     public void returnToMainMenu() {
         if (gamePanel != null) {
+            // Stop the old timer before removing the game panel.
             gamePanel.timer.stop();
             gamePanel = null;
         }
@@ -316,6 +330,7 @@ public class GameUI extends JFrame {
 
     public void showGameOver(int reachedLevel) {
         if (gamePanel != null) {
+            // The dead run is discarded so retry starts from a clean Generator.
             gamePanel.timer.stop();
             gamePanel = null;
         }
@@ -348,6 +363,7 @@ public class GameUI extends JFrame {
     public void advanceToNextLevel() {
         currentLevel++;
         if (currentLevel > 7) {
+            // Finishing level 7 completes the run.
             JOptionPane.showMessageDialog(this, "You reached heaven. Run complete.");
             returnToMainMenu();
             return;
@@ -360,6 +376,7 @@ public class GameUI extends JFrame {
         Image nextBackground = loadBackgroundForLevel(currentLevel);
         
         // Create a new generator for the next level
+        // A new Generator resets the map, boss, portal, player, and projectiles.
         gamePanel = new Generator(nextBackground, currentLevel, selectedDifficulty, this);
         gamePanel.setPreferredSize(new Dimension(getWidth(), getHeight()));
         gamePanel.setFocusable(true);
@@ -379,6 +396,7 @@ public class GameUI extends JFrame {
     // Load background image for a specific level
     private Image loadBackgroundForLevel(int level) {
         try {
+            // Try relative paths first, then an absolute working-directory path.
             String[] possiblePaths = {
                 level + ".png",
                 "Background/" + level + ".png",
@@ -403,6 +421,7 @@ public class GameUI extends JFrame {
     }
 
     private void showQuitDialog() {
+        // Custom undecorated dialog keeps the pixel-style menu look consistent.
         JDialog dialog = new JDialog(this, "Quit?", true);
         dialog.setUndecorated(true);
         dialog.setSize(320, 200);
@@ -450,6 +469,7 @@ public class GameUI extends JFrame {
     }
 
     private void showControlsDialog() {
+        // Main-menu control editor; in-game controls are edited from Generator's pause menu.
         JDialog dialog = new JDialog(this, "Controls", true);
         dialog.setUndecorated(true);
         dialog.setSize(460, 560);
@@ -490,6 +510,7 @@ public class GameUI extends JFrame {
             keyButton.setPreferredSize(new Dimension(150, 38));
             keyButton.setMaximumSize(new Dimension(150, 38));
             keyButton.addActionListener(e -> {
+                // Capture one input, then refresh all labels because bindings are global.
                 captureControlKey(dialog, action);
                 for (int j = 0; j < bindingButtons.length; j++) {
                     bindingButtons[j].setText(Controls.getBindingText(j));
@@ -527,6 +548,7 @@ public class GameUI extends JFrame {
     }
 
     private void captureControlKey(JDialog parent, int action) {
+        // Modal mini-dialog grabs exactly one key press or mouse click for rebinding.
         JDialog capture = new JDialog(parent, "Press Input", true);
         capture.setUndecorated(true);
         capture.setSize(320, 150);
@@ -563,12 +585,14 @@ public class GameUI extends JFrame {
     }
 
     private String buildStatsText(Difficulty s) {
+        // Compact text reused in both menu and in-game info panels.
         return "Lives: " + s.getLives()
              + "  |  Speed: " + s.getSpeed()
              + "  |  Bonus: +" + s.getTimeBonus() + "s";
     }
 
     private JLabel createLabel(String text, int size, Color color, int style) {
+        // Centralizes the arcade-style font and centered alignment.
         JLabel l = new JLabel(text, SwingConstants.CENTER);
         l.setFont(new Font("Monospaced", style, size));
         l.setForeground(color);
@@ -576,6 +600,7 @@ public class GameUI extends JFrame {
     }
 
     private JButton createButton(String text, Color color) {
+        // Custom painting gives every button the same outline/hover/pressed behavior.
         JButton btn = new JButton(text) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -607,6 +632,7 @@ public class GameUI extends JFrame {
     }
 
     private JToggleButton createToggleButton(String text, Color color) {
+        // Difficulty buttons share the same visual style as normal menu buttons.
         JToggleButton tb = new JToggleButton(text) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -637,6 +663,7 @@ public class GameUI extends JFrame {
     }
 
     private JPanel createPixelDivider() {
+        // Small repeated blocks separate menu sections without using image assets.
         JPanel d = new JPanel() {
             @Override protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
@@ -674,6 +701,7 @@ public class GameUI extends JFrame {
         }
 
         private Image loadImageForLevel(int level) {
+            // Same lookup strategy as loadBackgroundForLevel, used for the outer frame.
             String[] possiblePaths = {
                 level + ".png",
                 "Background/" + level + ".png",
@@ -705,6 +733,7 @@ public class GameUI extends JFrame {
                 g2.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
             }
 
+            // Scanlines and corner brackets sit over the level image for a retro UI frame.
             g2.setColor(new Color(0, 0, 0, 40));
             for (int y = 0; y < getHeight(); y += 4) g2.drawLine(0, y+3, getWidth(), y+3);
             int s = 20, m = 20;

@@ -1,6 +1,10 @@
 import java.awt.*;
 import java.util.ArrayList;
 
+/**
+ * Moving hitbox used for both player shots and boss shots.
+ * The fromPlayer flag decides who can be damaged and how the projectile draws.
+ */
 public class Projectile {
     private double x;
     private double y;
@@ -28,12 +32,14 @@ public class Projectile {
 
     public void update(ArrayList<Rectangle> tiles) {
         if (!active) return;
+        // Projectiles use double positions for smooth velocity, then round for hitboxes.
         x += velocityX;
         y += velocityY;
         lifeFrames--;
 
         Rectangle bounds = getBounds();
         for (Rectangle tile : tiles) {
+            // Any wall collision destroys the projectile.
             if (bounds.intersects(tile)) {
                 active = false;
                 return;
@@ -67,6 +73,7 @@ public class Projectile {
         if (!active) return;
         Graphics2D g2 = (Graphics2D) g;
         Rectangle bounds = getBounds();
+        // Color identifies ownership: blue for player, orange/red for enemy.
         if (fromPlayer) {
             g2.setColor(new Color(120, 230, 255));
             g2.fillOval(bounds.x, bounds.y, bounds.width, bounds.height);

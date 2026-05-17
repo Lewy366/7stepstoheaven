@@ -2,15 +2,22 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 
+/**
+ * Player character physics, input state, combat, health, and rendering.
+ * Generator owns the game loop and calls update/draw each frame.
+ */
 public class Player {
 
+    // The player's collision box gets shorter while ducking, but keeps the same width.
     static final int STANDING_WIDTH = 50;
     static final int STANDING_HEIGHT = 50;
     static final int DUCK_HEIGHT = 32;
 
+    // Top-left position of the standing body box in world coordinates.
     int playerX = 100;
     int playerY = 250;
 
+    // Movement is stored as velocity so acceleration, friction, and knockback feel smooth.
     double velocityX = 0;
     double velocityY = 0;
 
@@ -44,11 +51,13 @@ public class Player {
 
     private int maxHealth;
     private int health;
+    // World bounds stop the player from leaving the generated level.
     private int worldWidth;
     private int worldHeight;
 
     ArrayList<Rectangle> tiles;
 
+    // Keyboard state is kept on the player so movement works independently of menus.
     KeyAdapter keyAdapter = new KeyAdapter() {
         @Override
         public void keyPressed(KeyEvent e) {
@@ -57,6 +66,7 @@ public class Player {
             if (Controls.matchesKey(Controls.MOVE_RIGHT, key)) rightPressed = true;
             if (Controls.matchesKey(Controls.DUCK, key)) duckPressed = true;
             if (Controls.matchesKey(Controls.JUMP, key) && !jumpHeld) {
+                // Buffering makes a jump still happen if the key was pressed slightly early.
                 jumpBufferFrames = 8;
                 jumpHeld = true;
             }
@@ -75,6 +85,7 @@ public class Player {
         }
     };
 
+    // Mouse input uses the same action system, which allows any action to be rebound to a button.
     MouseAdapter mouseAdapter = new MouseAdapter() {
         @Override
         public void mousePressed(MouseEvent e) {
@@ -105,6 +116,7 @@ public class Player {
         this.tiles = tiles;
         this.worldWidth = worldWidth;
         this.worldHeight = worldHeight;
+        // Higher difficulty lowers health; selected difficulty speed makes movement snappier.
         maxHealth = 110 - difficulty.getLevel() * 10;
         health = maxHealth;
         maxMoveSpeed = 6.5 + difficulty.getSpeed() * 0.45;
@@ -117,6 +129,7 @@ public class Player {
     }
 
     public void update() {
+        // Update order matters: input changes velocity, then collision resolves movement.
         tickTimers();
         updateHorizontalMovement();
         tryJump();
@@ -133,6 +146,7 @@ public class Player {
         moveY();
 
         if (onGround) {
+            // Coyote time lets the player jump a few frames after leaving a ledge.
             coyoteFrames = 8;
             jumpsUsed = 0;
         } else if (coyoteFrames > 0) {
@@ -141,6 +155,7 @@ public class Player {
     }
 
     public void resetInputState() {
+        // Used after rebinding/menu changes so old held inputs do not remain stuck on.
         leftPressed = false;
         rightPressed = false;
         duckPressed = false;
@@ -151,6 +166,7 @@ public class Player {
     }
 
     private void tickTimers() {
+        // All cooldowns count down in frames because the Swing timer runs every 16 ms.
         if (jumpBufferFrames > 0) jumpBufferFrames--;
         if (dashCooldownFrames > 0) dashCooldownFrames--;
         if (attackCooldownFrames > 0) attackCooldownFrames--;
@@ -160,6 +176,7 @@ public class Player {
     }
 
     private void updateHorizontalMovement() {
+        // Holding left/right accelerates; releasing both applies friction.
         if (leftPressed) {
             velocityX -= moveAcceleration;
             facingRight = false;
@@ -174,6 +191,7 @@ public class Player {
             if (Math.abs(velocityX) < 0.1) velocityX = 0;
         }
 
+        // Ducking on the ground intentionally limits horizontal speed.
         double speedCap = duckPressed && onGround ? maxMoveSpeed * 0.45 : maxMoveSpeed;
         if (velocityX > speedCap) velocityX = speedCap;
         if (velocityX < -speedCap) velocityX = -speedCap;
@@ -183,12 +201,14 @@ public class Player {
         if (jumpBufferFrames == 0) return;
 
         if (onGround || coyoteFrames > 0) {
+            // First jump can come from the ground or the coyote-time window.
             velocityY = -18;
             onGround = false;
             coyoteFrames = 0;
             jumpsUsed = 1;
             jumpBufferFrames = 0;
         } else if (jumpsUsed < 2) {
+            // One extra air jump is allowed.
             velocityY = -16;
             jumpsUsed++;
             jumpBufferFrames = 0;
@@ -197,6 +217,7 @@ public class Player {
 
     private void tryDash() {
         if (!dashPressed) return;
+        // Dash is a short burst that cancels vertical movement for a few frames.
         dashPressed = false;
         dashFrames = 10;
         dashCooldownFrames = 36;
@@ -210,6 +231,7 @@ public class Player {
         Rectangle player = getBounds();
         for (Rectangle tile : tiles) {
             if (player.intersects(tile)) {
+                // Resolve horizontal collisions by placing the player beside the wall hit.
                 if (velocityX > 0) {
                     playerX = tile.x - getWidth();
                 } else if (velocityX < 0) {
@@ -229,6 +251,7 @@ public class Player {
         Rectangle player = getBounds();
         for (Rectangle tile : tiles) {
             if (player.intersects(tile)) {
+                // Resolve vertical collisions and mark grounded only when landing from above.
                 if (velocityY > 0) {
                     playerY = tile.y - getHeight();
                     velocityY = 0;
@@ -263,6 +286,7 @@ public class Player {
     private void clampYToWorld() {
         if (worldHeight <= 0) return;
         Rectangle bounds = getBounds();
+        // Ducking changes the collision height, so the clamp compensates for that offset.
         int minY = -(STANDING_HEIGHT - getHeight());
         int maxY = Math.max(minY, worldHeight - bounds.height - (STANDING_HEIGHT - getHeight()));
         if (playerY < minY) {
@@ -277,6 +301,7 @@ public class Player {
 
     public boolean startAttack() {
         if (attackPressed && attackCooldownFrames == 0) {
+            // A melee attack is active for a small number of frames, then goes on cooldown.
             attackPressed = false;
             attackFrames = 10;
             attackCooldownFrames = 24;
@@ -287,6 +312,7 @@ public class Player {
     }
 
     public Rectangle getAttackBounds() {
+        // Attack hitbox extends from the side the player is facing.
         int range = 46;
         int x = facingRight ? playerX + getWidth() : playerX - range;
         return new Rectangle(x, playerY + 8, range, getHeight() - 12);
@@ -297,6 +323,7 @@ public class Player {
             shootPressed = false;
             return null;
         }
+        // Shooting consumes the press immediately so one click/key press creates one shot.
         shootPressed = false;
         shootCooldownFrames = 28;
         int direction = facingRight ? 1 : -1;
@@ -307,6 +334,7 @@ public class Player {
     }
 
     public Rectangle getBounds() {
+        // The Y offset keeps the feet in the same place when ducking lowers the body.
         int height = getHeight();
         return new Rectangle(playerX, playerY + STANDING_HEIGHT - height, getWidth(), height);
     }
@@ -321,6 +349,7 @@ public class Player {
 
     public void hurt(int damage) {
         if (invulnerableFrames > 0) return;
+        // After taking damage, temporary invulnerability prevents instant repeated hits.
         health -= damage;
         invulnerableFrames = 50;
         velocityX = facingRight ? -8 : 8;
@@ -348,6 +377,7 @@ public class Player {
         Graphics2D g2 = (Graphics2D) g;
         Rectangle body = getBounds();
 
+        // Flicker during invulnerability to show damage immunity.
         if (invulnerableFrames % 8 < 4) {
             g2.setColor(new Color(55, 100, 255));
         } else {
@@ -360,6 +390,7 @@ public class Player {
         g2.fillRect(eyeX, body.y + 10, 6, 6);
 
         if (attackFrames > 0) {
+            // Draw the active melee hitbox so combat range is visible.
             Rectangle attack = getAttackBounds();
             g2.setColor(new Color(120, 210, 255, 140));
             g2.fillRect(attack.x, attack.y, attack.width, attack.height);

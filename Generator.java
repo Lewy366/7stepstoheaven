@@ -4,9 +4,15 @@ import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.*;
 
+/**
+ * Main gameplay panel for one level.
+ * It owns the generated map, player, boss, pickups, projectiles, camera,
+ * pause menu, and frame-by-frame game loop.
+ */
 public class Generator extends JPanel implements ActionListener, KeyListener, MouseListener {
 
     // --- Timer ---
+    // Roughly 60 frames per second; actionPerformed is the game loop.
     Timer timer = new Timer(16, this);
 
     // --- Map ---
@@ -25,6 +31,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     ArrayList<Projectile> projectiles = new ArrayList<>();
 
     // --- Camera ---
+    // Camera offset is subtracted from world coordinates during drawing.
     int cameraX = 0;
     int cameraY = 0;
 
@@ -71,6 +78,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         setPreferredSize(new Dimension(1920, 1080));
 
         seed = System.currentTimeMillis();
+        // Each level instance gets a fresh random map layout.
         map  = generateMap(MAP_ROWS, MAP_COLS, seed);
         buildMap();
 
@@ -93,15 +101,18 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         int floorRow = rows - 3;
         int arenaStart = Math.max(8, cols - 12);
 
+        // Start with a solid floor at the bottom of the world.
         for (int row = floorRow; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
                 newMap[row][col] = 1;
             }
         }
 
+        // Keep the spawn area and boss arena open so important entities are reachable.
         clearArea(newMap, 0, 0, 6, floorRow);
         clearArea(newMap, arenaStart, 0, cols - arenaStart, floorRow);
 
+        // Add randomized mid-level platforms between the spawn and boss arena.
         int platformRow = floorRow - 5 - random.nextInt(3);
         for (int col = 5; col < arenaStart - 5; col += 5 + random.nextInt(3)) {
             int length = 3 + random.nextInt(3);
@@ -111,10 +122,12 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         }
 
         int bridgeRow = floorRow - 7;
+        // A few fixed bridge platforms create a more reliable route across the map.
         for (int col = 8; col < arenaStart - 8; col += 10) {
             addPlatform(newMap, bridgeRow, col, 4);
         }
 
+        // Final cleanup removes accidental blocks from key open areas.
         clearArea(newMap, 0, 0, 5, floorRow);
         clearArea(newMap, arenaStart, 0, cols - arenaStart, floorRow);
         clearArea(newMap, cols - 4, 0, 4, floorRow);
@@ -122,6 +135,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     }
 
     private void addPlatform(int[][] targetMap, int row, int startCol, int length) {
+        // Map value 1 means solid tile; 0 means empty space.
         if (length <= 0 || row < 0 || row >= targetMap.length) return;
         int endCol = Math.min(targetMap[row].length, startCol + length);
         for (int col = Math.max(0, startCol); col < endCol; col++) {
@@ -130,6 +144,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     }
 
     private void clearArea(int[][] targetMap, int startCol, int startRow, int width, int height) {
+        // Clamp the requested rectangle so clearing never indexes outside the map.
         int endRow = Math.min(targetMap.length, startRow + height);
         for (int row = Math.max(0, startRow); row < endRow; row++) {
             int endCol = Math.min(targetMap[row].length, startCol + width);
@@ -144,6 +159,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     // -------------------------------------------------------
     void buildMap() {
         tiles.clear();
+        // Convert the tile grid into Rectangle hitboxes used by collision code.
         for (int row = 0; row < map.length; row++) {
             for (int col = 0; col < map[row].length; col++) {
                 if (map[row][col] == 1) {
@@ -161,6 +177,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     private void setupLevelEntities() {
         healingItems.clear();
 
+        // Boss, portal, and pickups are placed in the arena at the far right.
         int floorY = (MAP_ROWS - 3) * TILE_SIZE;
         int arenaStart = Math.max(8, MAP_COLS - 12);
         int bossX = (MAP_COLS - 7) * TILE_SIZE;
@@ -177,11 +194,13 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     }
 
     private void updateProjectiles() {
+        // Iterate backward so projectiles can be safely removed during the loop.
         for (int i = projectiles.size() - 1; i >= 0; i--) {
             Projectile projectile = projectiles.get(i);
             projectile.update(tiles);
 
             if (projectile.isActive()) {
+                // A projectile can only damage the opposite side.
                 if (projectile.isFromPlayer()) {
                     if (boss != null && !boss.isDead() && projectile.getBounds().intersects(boss.getBounds())) {
                         boss.takeDamage(projectile.getDamage());
@@ -194,6 +213,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
             }
 
             Rectangle bounds = projectile.getBounds();
+            // Remove old shots that have traveled far outside the playable space.
             boolean outOfWorld = bounds.x < -200 || bounds.x > MAP_COLS * TILE_SIZE + 200
                     || bounds.y < -300 || bounds.y > MAP_ROWS * TILE_SIZE + 300;
             if (!projectile.isActive() || outOfWorld) {
@@ -208,12 +228,14 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     @Override
     public void actionPerformed(ActionEvent e) {
         if (isPaused) {
+            // Repaint keeps the pause menu responsive without advancing gameplay.
             repaint();
             return;
         }
 
         player.update();
 
+        // Resolve player attacks immediately after player movement/input.
         if (player.startAttack() && boss != null && !boss.isDead()
                 && player.getAttackBounds().intersects(boss.getBounds())) {
             boss.takeDamage(18 + currentLevel * 2);
@@ -225,6 +247,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         }
 
         if (boss != null) {
+            // Boss updates may produce a projectile, then its body/attack can hurt the player.
             boss.update(player);
             Projectile bossShot = boss.fireProjectileIfReady(player);
             if (bossShot != null) {
@@ -234,6 +257,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
                 player.hurt(boss.getCurrentDamage());
             }
             if (boss.isDead() && !portalOpened) {
+                // The portal opens exactly once after the boss dies.
                 portalOpened = true;
                 portal.setActive(true);
             }
@@ -247,10 +271,12 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         updateProjectiles();
 
         if (player.playerY > MAP_ROWS * TILE_SIZE + 300) {
+            // Falling far below the map is treated as lethal.
             player.hurt(player.getMaxHealth());
         }
 
         if (player.isDead()) {
+            // GameUI handles screen changes; Generator just reports the result.
             timer.stop();
             if (uiReference != null) {
                 uiReference.showGameOver(currentLevel);
@@ -263,6 +289,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         }
 
         if (portal != null && portal.canAdvance(player)) {
+            // Touching an active portal advances to the next level.
             timer.stop();
             if (uiReference != null) {
                 uiReference.advanceToNextLevel();
@@ -281,6 +308,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         int viewW = Math.max(1, getWidth());
         int viewH = Math.max(1, getHeight());
 
+        // Center the camera on the player, then clamp it to the map edges.
         cameraX = player.playerX + 25 - viewW / 2;
         cameraY = player.playerY + 25 - viewH / 2;
 
@@ -306,6 +334,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
 
         g2.translate(-cameraX, -cameraY);
 
+        // Everything drawn after this translate is in world coordinates.
         for (Rectangle tile : tiles) {
             g2.setColor(Color.GRAY);
             g2.fillRect(tile.x, tile.y, tile.width, tile.height);
@@ -319,6 +348,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         if (boss != null && !boss.isDead()) boss.draw(g2);
         player.draw(g2);
 
+        // Return to screen coordinates for HUD and menus.
         g2.translate(cameraX, cameraY);
 
         // Draw level title at the top
@@ -343,6 +373,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     }
 
     private void drawHud(Graphics2D g2) {
+        // Player health is always shown; boss health is replaced by portal guidance on death.
         int x = 24;
         int y = 78;
         drawBar(g2, x, y, 260, 18, player.getHealth(), player.getMaxHealth(),
@@ -359,6 +390,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     }
 
     private void drawBar(Graphics2D g2, int x, int y, int w, int h, int value, int max, Color color, String label) {
+        // Shared rectangle bar renderer for player and boss health.
         g2.setColor(new Color(0, 0, 0, 150));
         g2.fillRect(x, y, w, h);
         int fill = max <= 0 ? 0 : (int) (w * Math.max(0, value) / (double) max);
@@ -479,6 +511,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     @Override
     public void keyPressed(KeyEvent e) {
         if (isPaused && inControlsMenu && waitingForControlKey) {
+            // In capture mode, the next key either becomes the binding or cancels capture.
             if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
                 waitingForControlKey = false;
             } else if (selectedControlOption < Controls.getActionCount()) {
@@ -492,6 +525,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
 
         // Handle pause menu
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            // ESC backs out of controls first, otherwise toggles the pause overlay.
             if (inControlsMenu) {
                 inControlsMenu = false;
                 waitingForControlKey = false;
@@ -516,6 +550,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
                     repaint();
                 } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                     if (selectedControlOption < Controls.getActionCount()) {
+                        // ENTER on an action starts listening for the replacement binding.
                         waitingForControlKey = true;
                     } else {
                         Controls.resetDefaults();
@@ -569,11 +604,13 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     public void mousePressed(MouseEvent e) {
         requestFocusInWindow();
         if (!isPaused) {
+            // During gameplay, mouse input is forwarded to the player's input adapter.
             player.mouseAdapter.mousePressed(e);
             return;
         }
 
         if (inControlsMenu && waitingForControlKey) {
+            // Mouse buttons can be used as bindings just like keyboard keys.
             if (selectedControlOption < Controls.getActionCount()) {
                 Controls.setMouseBinding(selectedControlOption, e.getButton());
                 player.resetInputState();
@@ -616,6 +653,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     @Override public void mouseExited(MouseEvent e) {}
 
     private int getPauseMenuOptionAt(int mouseX, int mouseY) {
+        // These rectangles mirror the positions used in drawMainPauseMenu().
         int centerX = getWidth() / 2;
         int centerY = getHeight() / 2;
         int startY = centerY - 20;
@@ -630,6 +668,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     }
 
     private int getControlsMenuOptionAt(int mouseX, int mouseY) {
+        // These rectangles mirror the positions used in drawControlsMenu().
         int centerX = getWidth() / 2;
         int centerY = getHeight() / 2;
         int startY = centerY - 70;

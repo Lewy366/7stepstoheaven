@@ -1,6 +1,10 @@
 import java.awt.*;
 import java.util.ArrayList;
 
+/**
+ * Level boss enemy.
+ * Handles simple platform-aware movement, melee/ranged attacks, health, and drawing.
+ */
 public class Boss {
     private final Difficulty difficulty;
     private final int level;
@@ -15,6 +19,7 @@ public class Boss {
     private int health;
     private int contactDamage;
     private int attackDamage;
+    // Frame counters control attack timing without needing separate timer objects.
     private int attackCooldownFrames;
     private int rangedCooldownFrames;
     private int windupFrames;
@@ -43,6 +48,7 @@ public class Boss {
         this.worldHeight = worldHeight;
         this.minX = minX;
         this.maxX = maxX;
+        // Boss stats scale with both the level number and selected difficulty.
         maxHealth = 95 + level * 18 + difficulty.getLevel() * 35;
         health = maxHealth;
         contactDamage = 7 + difficulty.getLevel() * 3;
@@ -52,10 +58,12 @@ public class Boss {
     public void update(Player player) {
         if (isDead()) return;
 
+        // Count down temporary states before choosing this frame's action.
         if (attackCooldownFrames > 0) attackCooldownFrames--;
         if (rangedCooldownFrames > 0) rangedCooldownFrames--;
         if (hurtFlashFrames > 0) hurtFlashFrames--;
 
+        // Aim every action at the player's current center point.
         Rectangle playerBounds = player.getBounds();
         int bossCenter = x + width / 2;
         int playerCenter = playerBounds.x + playerBounds.width / 2;
@@ -71,32 +79,39 @@ public class Boss {
         rangedShotReady = false;
 
         if (rangedWindupFrames > 0) {
+            // During ranged windup the boss slows down, then fires on the final frame.
             rangedWindupFrames--;
             velocityX *= 0.8;
             if (rangedWindupFrames == 0) {
                 rangedShotReady = true;
             }
         } else if (windupFrames > 0) {
+            // Melee windup telegraphs a dash attack before it launches.
             windupFrames--;
             velocityX *= 0.82;
             if (!safeTowardPlayer) {
+                // Cancel the dash if it would run into a wall or off a platform.
                 windupFrames = 0;
                 attackCooldownFrames = 24;
                 velocityX = 0;
             }
             if (windupFrames == 0) {
+                // Attack frames keep the hitbox active while the boss lunges.
                 attackFrames = 13 + difficulty.getLevel() * 2;
                 velocityX = safeTowardPlayer ? direction * speed * 4.5 : 0;
             }
         } else if (attackFrames > 0) {
             attackFrames--;
         } else if (distance < 130 && attackCooldownFrames == 0) {
+            // Prefer melee when close enough.
             windupFrames = Math.max(10, 28 - difficulty.getLevel() * 5);
             attackCooldownFrames = Math.max(34, 82 - difficulty.getLevel() * 13 - level * 2);
         } else if ((distance < 650 || !safeTowardPlayer) && rangedCooldownFrames == 0) {
+            // Use ranged attacks when the player is reachable but not ideal for melee.
             rangedWindupFrames = Math.max(14, 34 - difficulty.getLevel() * 4);
             rangedCooldownFrames = Math.max(45, 110 - difficulty.getLevel() * 17 - level * 3);
         } else {
+            // Normal movement: back up if too close, chase if too far, otherwise slow down.
             if (distance < 70 && safeAwayFromPlayer) {
                 velocityX += -direction * 0.46;
             } else if (distance > 78 && safeTowardPlayer) {
@@ -108,15 +123,18 @@ public class Boss {
             if (velocityX < -speed) velocityX = -speed;
 
             if (playerAbove && onGround && Math.abs(playerCenter - bossCenter) < 180) {
+                // Hop up toward platforms when the player is above the boss.
                 velocityY = -14;
                 onGround = false;
             }
         }
 
         if (!canMoveInDirection(velocityX > 0 ? 1 : -1)) {
+            // A final safety check keeps the boss from walking off ledges.
             velocityX = 0;
         }
 
+        // Gravity applies after choosing movement, then collision resolves both axes.
         velocityY += 1.0;
         if (velocityY > 18) velocityY = 18;
 
@@ -127,6 +145,7 @@ public class Boss {
         if (Math.abs(x - oldX) < 1 && Math.abs(velocityX) > 0.2) {
             stuckFrames++;
             if (stuckFrames > 18 && onGround) {
+                // If movement is blocked for a while, jump to try to escape.
                 velocityY = -12;
                 stuckFrames = 0;
             }
@@ -140,6 +159,7 @@ public class Boss {
         Rectangle bounds = getBounds();
         for (Rectangle tile : tiles) {
             if (bounds.intersects(tile)) {
+                // Push the boss to the near side of the wall it hit.
                 if (velocityX > 0) {
                     x = tile.x - width;
                 } else if (velocityX < 0) {
@@ -158,6 +178,7 @@ public class Boss {
         onGround = false;
         for (Rectangle tile : tiles) {
             if (bounds.intersects(tile)) {
+                // Falling into a tile means the boss has landed.
                 if (velocityY > 0) {
                     y = tile.y - height;
                     velocityY = 0;
@@ -174,11 +195,13 @@ public class Boss {
 
     private boolean canMoveInDirection(int direction) {
         if (direction == 0) return true;
+        // Respect the arena limits passed in from the level generator.
         if ((direction < 0 && x <= minX) || (direction > 0 && x + width >= maxX)) {
             return false;
         }
         Rectangle nextBody = new Rectangle(x + direction * 10, y, width, height);
         for (Rectangle tile : tiles) {
+            // Do not intentionally walk into solid terrain.
             if (nextBody.intersects(tile)) {
                 return false;
             }
@@ -187,6 +210,7 @@ public class Boss {
     }
 
     private boolean hasGroundAhead(int direction) {
+        // A downward probe checks for floor just beyond the boss's feet.
         int probeX = direction > 0 ? x + width + 6 : x - 24;
         Rectangle probe = new Rectangle(probeX, y + height + 2, 24, 70);
         for (Rectangle tile : tiles) {
@@ -198,6 +222,7 @@ public class Boss {
     }
 
     private void clampXToWorld() {
+        // minX/maxX confine the boss to the arena section of the map.
         int leftLimit = Math.max(0, minX);
         int rightLimit = Math.max(leftLimit, Math.min(worldWidth, maxX) - width);
         if (x < leftLimit) {
@@ -226,6 +251,7 @@ public class Boss {
     }
 
     public Rectangle getAttackBounds() {
+        // The melee rectangle is placed on the side the boss is facing.
         int range = 70 + difficulty.getLevel() * 8;
         int attackX = facingRight ? x + width : x - range;
         return new Rectangle(attackX, y + 18, range, height - 28);
@@ -233,6 +259,7 @@ public class Boss {
 
     public boolean canDamagePlayer(Player player) {
         if (isDead()) return false;
+        // Touching the body deals contact damage; active melee frames deal attack damage.
         if (getBounds().intersects(player.getBounds())) return true;
         return attackFrames > 0 && getAttackBounds().intersects(player.getBounds());
     }
@@ -245,6 +272,7 @@ public class Boss {
         if (!rangedShotReady || isDead()) return null;
         rangedShotReady = false;
 
+        // Aim the projectile directly at the player's center at the moment of firing.
         Rectangle playerBounds = player.getBounds();
         double originX = facingRight ? x + width : x - 24;
         double originY = y + 32;
@@ -261,6 +289,7 @@ public class Boss {
     public void takeDamage(int damage) {
         health -= damage;
         hurtFlashFrames = 8;
+        // Knockback pushes the boss away from the direction it was facing.
         velocityX += facingRight ? -5 : 5;
         if (health < 0) health = 0;
     }
@@ -281,6 +310,7 @@ public class Boss {
         Graphics2D g2 = (Graphics2D) g;
         Rectangle body = getBounds();
 
+        // Body color communicates current state: hurt, windup, or idle.
         if (hurtFlashFrames > 0) {
             g2.setColor(new Color(255, 235, 235));
         } else if (windupFrames > 0 || rangedWindupFrames > 0) {
@@ -298,6 +328,7 @@ public class Boss {
         g2.fillRect(eyeX, body.y + 30, 9, 9);
 
         if (attackFrames > 0 || windupFrames > 0) {
+            // Telegraph and active melee range are both drawn, with stronger opacity when active.
             Rectangle attack = getAttackBounds();
             g2.setColor(new Color(255, 80, 80, attackFrames > 0 ? 155 : 70));
             g2.fillRect(attack.x, attack.y, attack.width, attack.height);
@@ -306,6 +337,7 @@ public class Boss {
         }
 
         if (rangedWindupFrames > 0) {
+            // The charging orb warns that a projectile is about to be fired.
             int orbX = facingRight ? body.x + body.width + 8 : body.x - 28;
             g2.setColor(new Color(255, 90, 40, 180));
             g2.fillOval(orbX, body.y + 26, 24, 24);
