@@ -12,6 +12,7 @@ public class Player {
     static final int STANDING_WIDTH = 50;
     static final int STANDING_HEIGHT = 50;
     static final int DUCK_HEIGHT = 32;
+    static final int TRIPLE_SHOT_COOLDOWN_FRAMES = 625;
 
     // Top-left position of the standing body box in world coordinates.
     int playerX = 100;
@@ -38,6 +39,7 @@ public class Player {
     private boolean dashPressed = false;
     private boolean attackPressed = false;
     private boolean shootPressed = false;
+    private boolean tripleShotPressed = false;
 
     private int coyoteFrames = 0;
     private int jumpBufferFrames = 0;
@@ -47,10 +49,13 @@ public class Player {
     private int attackCooldownFrames = 0;
     private int attackFrames = 0;
     private int shootCooldownFrames = 0;
+    private int tripleShotCooldownFrames = 0;
     private int invulnerableFrames = 0;
 
     private int maxHealth;
     private int health;
+    private double aimX = playerX + 300;
+    private double aimY = playerY + STANDING_HEIGHT / 2.0;
     // World bounds stop the player from leaving the generated level.
     private int worldWidth;
     private int worldHeight;
@@ -73,6 +78,7 @@ public class Player {
             if (Controls.matchesKey(Controls.DASH, key) && dashCooldownFrames == 0) dashPressed = true;
             if (Controls.matchesKey(Controls.MELEE, key)) attackPressed = true;
             if (Controls.matchesKey(Controls.SHOOT, key)) shootPressed = true;
+            if (Controls.matchesKey(Controls.TRIPLE_SHOT, key)) tripleShotPressed = true;
         }
 
         @Override
@@ -100,6 +106,7 @@ public class Player {
             if (Controls.matchesMouse(Controls.DASH, button) && dashCooldownFrames == 0) dashPressed = true;
             if (Controls.matchesMouse(Controls.MELEE, button)) attackPressed = true;
             if (Controls.matchesMouse(Controls.SHOOT, button)) shootPressed = true;
+            if (Controls.matchesMouse(Controls.TRIPLE_SHOT, button)) tripleShotPressed = true;
         }
 
         @Override
@@ -163,6 +170,7 @@ public class Player {
         dashPressed = false;
         attackPressed = false;
         shootPressed = false;
+        tripleShotPressed = false;
     }
 
     private void tickTimers() {
@@ -172,6 +180,7 @@ public class Player {
         if (attackCooldownFrames > 0) attackCooldownFrames--;
         if (attackFrames > 0) attackFrames--;
         if (shootCooldownFrames > 0) shootCooldownFrames--;
+        if (tripleShotCooldownFrames > 0) tripleShotCooldownFrames--;
         if (invulnerableFrames > 0) invulnerableFrames--;
     }
 
@@ -318,6 +327,13 @@ public class Player {
         return new Rectangle(x, playerY + 8, range, getHeight() - 12);
     }
 
+    public void setAimPoint(int worldX, int worldY) {
+        aimX = worldX;
+        aimY = worldY;
+        Rectangle body = getBounds();
+        facingRight = aimX >= body.x + body.width / 2.0;
+    }
+
     public Projectile shootProjectile() {
         if (!shootPressed || shootCooldownFrames > 0) {
             shootPressed = false;
@@ -326,11 +342,49 @@ public class Player {
         // Shooting consumes the press immediately so one click/key press creates one shot.
         shootPressed = false;
         shootCooldownFrames = 28;
-        int direction = facingRight ? 1 : -1;
+        return createAimedProjectile(0, 13, 18, 14, 12, 80);
+    }
+
+    public ArrayList<Projectile> shootTripleProjectiles() {
+        ArrayList<Projectile> shots = new ArrayList<>();
+        if (!tripleShotPressed || tripleShotCooldownFrames > 0) {
+            tripleShotPressed = false;
+            return shots;
+        }
+
+        // Triple shot fires a tight spread and then waits ten seconds before recharging.
+        tripleShotPressed = false;
+        tripleShotCooldownFrames = TRIPLE_SHOT_COOLDOWN_FRAMES;
+        shootCooldownFrames = Math.max(shootCooldownFrames, 12);
+        shots.add(createAimedProjectile(-0.22, 13.5, 18, 14, 10, 80));
+        shots.add(createAimedProjectile(0, 14.0, 18, 14, 10, 80));
+        shots.add(createAimedProjectile(0.22, 13.5, 18, 14, 10, 80));
+        return shots;
+    }
+
+    private Projectile createAimedProjectile(double angleOffset, double speed,
+                                             int projectileWidth, int projectileHeight,
+                                             int damage, int lifeFrames) {
         Rectangle body = getBounds();
-        int startX = facingRight ? body.x + body.width : body.x - 18;
-        return new Projectile(startX, body.y + body.height / 2 - 7, direction * 13, 0,
-                18, 14, 12, true, 80);
+        double centerX = body.x + body.width / 2.0;
+        double centerY = body.y + body.height / 2.0;
+        double dx = aimX - centerX;
+        double dy = aimY - centerY;
+
+        if (Math.abs(dx) + Math.abs(dy) < 0.001) {
+            dx = facingRight ? 1 : -1;
+            dy = 0;
+        }
+
+        double angle = Math.atan2(dy, dx) + angleOffset;
+        double unitX = Math.cos(angle);
+        double unitY = Math.sin(angle);
+        facingRight = unitX >= 0;
+
+        double startX = centerX + unitX * (body.width / 2.0 + 2) - projectileWidth / 2.0;
+        double startY = centerY + unitY * (body.height / 2.0 + 2) - projectileHeight / 2.0;
+        return new Projectile(startX, startY, unitX * speed, unitY * speed,
+                projectileWidth, projectileHeight, damage, true, lifeFrames);
     }
 
     public Rectangle getBounds() {

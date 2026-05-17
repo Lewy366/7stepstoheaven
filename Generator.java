@@ -9,7 +9,7 @@ import javax.swing.*;
  * It owns the generated map, player, boss, pickups, projectiles, camera,
  * pause menu, and frame-by-frame game loop.
  */
-public class Generator extends JPanel implements ActionListener, KeyListener, MouseListener {
+public class Generator extends JPanel implements ActionListener, KeyListener, MouseListener, MouseMotionListener {
 
     // --- Timer ---
     // Roughly 60 frames per second; actionPerformed is the game loop.
@@ -87,6 +87,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         addKeyListener(player.keyAdapter);
         addKeyListener(this);
         addMouseListener(this);
+        addMouseMotionListener(this);
 
         timer.start();
         System.out.println("Level " + currentLevel + ": " + LEVEL_NAMES[currentLevel - 1]);
@@ -245,14 +246,12 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
         if (playerShot != null) {
             projectiles.add(playerShot);
         }
+        projectiles.addAll(player.shootTripleProjectiles());
 
         if (boss != null) {
             // Boss updates may produce a projectile, then its body/attack can hurt the player.
             boss.update(player);
-            Projectile bossShot = boss.fireProjectileIfReady(player);
-            if (bossShot != null) {
-                projectiles.add(bossShot);
-            }
+            projectiles.addAll(boss.fireProjectilesIfReady(player));
             if (boss.canDamagePlayer(player)) {
                 player.hurt(boss.getCurrentDamage());
             }
@@ -604,6 +603,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     public void mousePressed(MouseEvent e) {
         requestFocusInWindow();
         if (!isPaused) {
+            updatePlayerAim(e);
             // During gameplay, mouse input is forwarded to the player's input adapter.
             player.mouseAdapter.mousePressed(e);
             return;
@@ -645,12 +645,20 @@ public class Generator extends JPanel implements ActionListener, KeyListener, Mo
     @Override
     public void mouseReleased(MouseEvent e) {
         if (!isPaused) {
+            updatePlayerAim(e);
             player.mouseAdapter.mouseReleased(e);
         }
     }
     @Override public void mouseClicked(MouseEvent e) {}
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseExited(MouseEvent e) {}
+    @Override public void mouseDragged(MouseEvent e) { if (!isPaused) updatePlayerAim(e); }
+    @Override public void mouseMoved(MouseEvent e) { if (!isPaused) updatePlayerAim(e); }
+
+    private void updatePlayerAim(MouseEvent e) {
+        // Mouse coordinates are screen-relative, so camera offset converts them into world space.
+        player.setAimPoint(e.getX() + cameraX, e.getY() + cameraY);
+    }
 
     private int getPauseMenuOptionAt(int mouseX, int mouseY) {
         // These rectangles mirror the positions used in drawMainPauseMenu().

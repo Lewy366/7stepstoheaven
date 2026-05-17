@@ -26,6 +26,10 @@ public class Boss {
     private int attackFrames;
     private int rangedWindupFrames;
     private boolean rangedShotReady;
+    private int slamCooldownFrames;
+    private int slamWindupFrames;
+    private int slamFlashFrames;
+    private boolean shockwaveReady;
     private int hurtFlashFrames;
     private double velocityX;
     private double velocityY;
@@ -49,10 +53,10 @@ public class Boss {
         this.minX = minX;
         this.maxX = maxX;
         // Boss stats scale with both the level number and selected difficulty.
-        maxHealth = 95 + level * 18 + difficulty.getLevel() * 35;
+        maxHealth = 100 + level * 30 + difficulty.getLevel() * 40;
         health = maxHealth;
-        contactDamage = 7 + difficulty.getLevel() * 3;
-        attackDamage = 12 + difficulty.getLevel() * 5;
+        contactDamage = 7 + difficulty.getLevel() * 3 + level;
+        attackDamage = 12 + difficulty.getLevel() * 5 + level * 2;
     }
 
     public void update(Player player) {
@@ -61,6 +65,8 @@ public class Boss {
         // Count down temporary states before choosing this frame's action.
         if (attackCooldownFrames > 0) attackCooldownFrames--;
         if (rangedCooldownFrames > 0) rangedCooldownFrames--;
+        if (slamCooldownFrames > 0) slamCooldownFrames--;
+        if (slamFlashFrames > 0) slamFlashFrames--;
         if (hurtFlashFrames > 0) hurtFlashFrames--;
 
         // Aim every action at the player's current center point.
@@ -70,15 +76,25 @@ public class Boss {
         facingRight = playerCenter > bossCenter;
 
         int distance = Math.abs(playerCenter - bossCenter);
-        double speed = 2.1 + difficulty.getLevel() * 0.75 + level * 0.12;
+        boolean enraged = isEnraged();
+        double speed = 2.1 + difficulty.getLevel() * 0.75 + level * 0.22 + (enraged ? 0.75 : 0);
         int direction = facingRight ? 1 : -1;
         boolean safeTowardPlayer = canMoveInDirection(direction);
         boolean safeAwayFromPlayer = canMoveInDirection(-direction);
         boolean playerAbove = playerBounds.y + playerBounds.height < y - 18;
 
         rangedShotReady = false;
+        shockwaveReady = false;
 
-        if (rangedWindupFrames > 0) {
+        if (slamWindupFrames > 0) {
+            // Higher-level bosses can stomp to send shockwaves across the arena.
+            slamWindupFrames--;
+            velocityX *= 0.72;
+            if (slamWindupFrames == 0) {
+                shockwaveReady = true;
+                slamFlashFrames = 14;
+            }
+        } else if (rangedWindupFrames > 0) {
             // During ranged windup the boss slows down, then fires on the final frame.
             rangedWindupFrames--;
             velocityX *= 0.8;
@@ -104,12 +120,16 @@ public class Boss {
             attackFrames--;
         } else if (distance < 130 && attackCooldownFrames == 0) {
             // Prefer melee when close enough.
-            windupFrames = Math.max(10, 28 - difficulty.getLevel() * 5);
-            attackCooldownFrames = Math.max(34, 82 - difficulty.getLevel() * 13 - level * 2);
+            windupFrames = Math.max(8, 28 - difficulty.getLevel() * 5 - level / 2);
+            attackCooldownFrames = Math.max(28, 82 - difficulty.getLevel() * 13 - level * 4 - (enraged ? 12 : 0));
+        } else if (level >= 5 && onGround && distance < 430 && slamCooldownFrames == 0) {
+            // Late-game bosses add area control so standing still near them is dangerous.
+            slamWindupFrames = Math.max(16, 44 - difficulty.getLevel() * 4 - level);
+            slamCooldownFrames = Math.max(80, 185 - difficulty.getLevel() * 22 - level * 9);
         } else if ((distance < 650 || !safeTowardPlayer) && rangedCooldownFrames == 0) {
             // Use ranged attacks when the player is reachable but not ideal for melee.
-            rangedWindupFrames = Math.max(14, 34 - difficulty.getLevel() * 4);
-            rangedCooldownFrames = Math.max(45, 110 - difficulty.getLevel() * 17 - level * 3);
+            rangedWindupFrames = Math.max(11, 34 - difficulty.getLevel() * 4 - level / 2);
+            rangedCooldownFrames = Math.max(36, 110 - difficulty.getLevel() * 17 - level * 6 - (enraged ? 10 : 0));
         } else {
             // Normal movement: back up if too close, chase if too far, otherwise slow down.
             if (distance < 70 && safeAwayFromPlayer) {
@@ -146,7 +166,7 @@ public class Boss {
             stuckFrames++;
             if (stuckFrames > 18 && onGround) {
                 // If movement is blocked for a while, jump to try to escape.
-                velocityY = -12;
+                velocityY = -12 - Math.min(3, level / 2);
                 stuckFrames = 0;
             }
         } else {
@@ -268,8 +288,20 @@ public class Boss {
         return attackFrames > 0 ? attackDamage : contactDamage;
     }
 
-    public Projectile fireProjectileIfReady(Player player) {
-        if (!rangedShotReady || isDead()) return null;
+    public ArrayList<Projectile> fireProjectilesIfReady(Player player) {
+        ArrayList<Projectile> shots = new ArrayList<>();
+        if (isDead()) return shots;
+
+        if (shockwaveReady) {
+            shockwaveReady = false;
+            double originY = y + height - 28;
+            double speed = 8.5 + level * 0.35 + difficulty.getLevel() * 0.45;
+            int damage = 10 + level + difficulty.getLevel() * 4;
+            shots.add(createProjectile(x - 32, originY, -1, 0, speed, 34, 20, damage, 110));
+            shots.add(createProjectile(x + width - 2, originY, 1, 0, speed, 34, 20, damage, 110));
+        }
+
+        if (!rangedShotReady) return shots;
         rangedShotReady = false;
 
         // Aim the projectile directly at the player's center at the moment of firing.
@@ -280,10 +312,39 @@ public class Boss {
         double targetY = playerBounds.y + playerBounds.height / 2.0;
         double dx = targetX - originX;
         double dy = targetY - originY;
-        double length = Math.max(1, Math.sqrt(dx * dx + dy * dy));
-        double speed = 6.5 + difficulty.getLevel() * 1.2 + level * 0.18;
-        return new Projectile(originX, originY, dx / length * speed, dy / length * speed,
-                24, 24, 8 + difficulty.getLevel() * 4, false, 150);
+        double baseAngle = Math.atan2(dy, dx);
+        double speed = 6.5 + difficulty.getLevel() * 1.2 + level * 0.32;
+        int damage = 8 + difficulty.getLevel() * 4 + level;
+
+        if (level >= 6) {
+            // Final levels fire a five-shot fan.
+            for (double offset : new double[]{ -0.34, -0.17, 0, 0.17, 0.34 }) {
+                shots.add(createProjectileAtAngle(originX, originY, baseAngle + offset, speed, 22, 22, damage, 150));
+            }
+        } else if (level >= 3) {
+            // Middle levels fire a three-shot spread.
+            for (double offset : new double[]{ -0.22, 0, 0.22 }) {
+                shots.add(createProjectileAtAngle(originX, originY, baseAngle + offset, speed, 23, 23, damage, 150));
+            }
+        } else {
+            shots.add(createProjectileAtAngle(originX, originY, baseAngle, speed, 24, 24, damage, 150));
+        }
+
+        return shots;
+    }
+
+    private Projectile createProjectileAtAngle(double originX, double originY, double angle,
+                                               double speed, int width, int height,
+                                               int damage, int lifeFrames) {
+        return createProjectile(originX, originY, Math.cos(angle), Math.sin(angle),
+                speed, width, height, damage, lifeFrames);
+    }
+
+    private Projectile createProjectile(double originX, double originY, double unitX, double unitY,
+                                        double speed, int width, int height,
+                                        int damage, int lifeFrames) {
+        return new Projectile(originX, originY, unitX * speed, unitY * speed,
+                width, height, damage, false, lifeFrames);
     }
 
     public void takeDamage(int damage) {
@@ -306,6 +367,11 @@ public class Boss {
         return maxHealth;
     }
 
+    private boolean isEnraged() {
+        // After half health, bosses move and attack faster as a second phase.
+        return level >= 4 && health <= maxHealth / 2;
+    }
+
     public void draw(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
         Rectangle body = getBounds();
@@ -313,8 +379,12 @@ public class Boss {
         // Body color communicates current state: hurt, windup, or idle.
         if (hurtFlashFrames > 0) {
             g2.setColor(new Color(255, 235, 235));
+        } else if (slamWindupFrames > 0) {
+            g2.setColor(new Color(255, 150, 35));
         } else if (windupFrames > 0 || rangedWindupFrames > 0) {
             g2.setColor(new Color(255, 95, 80));
+        } else if (isEnraged()) {
+            g2.setColor(new Color(205, 34, 82));
         } else {
             g2.setColor(new Color(165, 42, 56));
         }
@@ -343,6 +413,15 @@ public class Boss {
             g2.fillOval(orbX, body.y + 26, 24, 24);
             g2.setColor(Color.WHITE);
             g2.drawOval(orbX, body.y + 26, 24, 24);
+        }
+
+        if (slamWindupFrames > 0 || slamFlashFrames > 0) {
+            // Stomp warning/impact line shows where shockwaves will start.
+            int alpha = slamWindupFrames > 0 ? 100 : 180;
+            g2.setColor(new Color(255, 180, 45, alpha));
+            g2.fillRect(body.x - 22, body.y + body.height - 10, body.width + 44, 12);
+            g2.setColor(Color.WHITE);
+            g2.drawRect(body.x - 22, body.y + body.height - 10, body.width + 44, 12);
         }
     }
 }

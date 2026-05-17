@@ -472,7 +472,7 @@ public class GameUI extends JFrame {
         // Main-menu control editor; in-game controls are edited from Generator's pause menu.
         JDialog dialog = new JDialog(this, "Controls", true);
         dialog.setUndecorated(true);
-        dialog.setSize(460, 560);
+        dialog.setSize(460, 620);
         dialog.setLocationRelativeTo(this);
 
         JPanel dlgPanel = new JPanel() {

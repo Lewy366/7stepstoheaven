@@ -8,7 +8,7 @@ import java.awt.event.MouseEvent;
  */
 public class Controls {
     // --- Action Constants ---
-    // These constants represent different game actions, indexed 0-6
+    // These constants represent different game actions, indexed 0-7
     public static final int MOVE_LEFT = 0;
     public static final int MOVE_RIGHT = 1;
     public static final int JUMP = 2;
@@ -16,6 +16,7 @@ public class Controls {
     public static final int DASH = 4;
     public static final int MELEE = 5;
     public static final int SHOOT = 6;
+    public static final int TRIPLE_SHOT = 7;
 
     // --- Display Names ---
     // User-friendly names for each action (used in UI menus)
@@ -26,7 +27,8 @@ public class Controls {
         "Duck",
         "Dash",
         "Melee",
-        "Shoot"
+        "Shoot",
+        "Triple Shot"
     };
 
     // --- Binding Type Constants ---
@@ -43,10 +45,11 @@ public class Controls {
         KEY_BINDING,
         KEY_BINDING,
         KEY_BINDING,
+        KEY_BINDING,
         KEY_BINDING
     };
 
-    // Default key codes: A, D, W, S, Shift, F, E
+    // Default key codes: A, D, W, S, Shift, F, E, Q
     private static final int[] DEFAULT_CODES = {
         KeyEvent.VK_A,
         KeyEvent.VK_D,
@@ -54,7 +57,8 @@ public class Controls {
         KeyEvent.VK_S,
         KeyEvent.VK_SHIFT,
         KeyEvent.VK_F,
-        KeyEvent.VK_E
+        KeyEvent.VK_E,
+        KeyEvent.VK_Q
     };
 
     // --- Current Bindings (Modifiable at Runtime) ---
@@ -134,7 +138,8 @@ public class Controls {
             + " move | " + getBindingText(JUMP) + " jump | "
             + getBindingText(DUCK) + " duck | " + getBindingText(DASH)
             + " dash | " + getBindingText(MELEE) + " melee | "
-            + getBindingText(SHOOT) + " shoot | ESC pause";
+            + getBindingText(SHOOT) + " shoot | " + getBindingText(TRIPLE_SHOT)
+            + " triple | ESC pause";
     }
 
     // --- Private Helper Methods ---
