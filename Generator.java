@@ -17,10 +17,10 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     int[][] map;
     ArrayList<Rectangle> tiles = new ArrayList<>();
 
-    // --- Spieler ---
-    Spieler spieler;
+    // --- Player ---
+    Player player;
 
-    // --- Kamera ---
+    // --- Camera ---
     int cameraX = 0;
     int cameraY = 0;
 
@@ -31,7 +31,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     private Image backgroundImage;
 
     // --- UI Reference and Level Tracking ---
-    private SpielUI uiReference;
+    private GameUI uiReference;
     private int currentLevel;
 
     // --- Pause and Settings ---
@@ -59,13 +59,13 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
         "The Heavens"       // Level 7
     };
 
-    // Constructor that accepts background image, level, and UI reference from SpielUI
-    public Generator(Image background, int level, SpielUI ui) {
+    // Constructor that accepts background image, level, and UI reference from GameUI
+    public Generator(Image background, int level, GameUI ui) {
         this.backgroundImage = background;
         this.currentLevel = level;
         this.uiReference = ui;
 
-        // This panel is designed to be embedded inside SpielUI.
+        // This panel is designed to be embedded inside GameUI.
         setFocusable(true);
         setDoubleBuffered(true);
         setPreferredSize(new Dimension(1920, 1080));
@@ -74,8 +74,8 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
         map  = generateMap(MAP_ROWS, MAP_COLS, seed);
         buildMap();
 
-        spieler = new Spieler(tiles);
-        addKeyListener(spieler.keyAdapter);
+        player = new Player(tiles);
+        addKeyListener(player.keyAdapter);
         addKeyListener(this);
 
         timer.start();
@@ -130,19 +130,19 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     }
 
     // -------------------------------------------------------
-    // NEUE MAP
+    // NEW MAP
     // -------------------------------------------------------
     void regenerateMap() {
         seed = System.currentTimeMillis();
         map  = generateMap(MAP_ROWS, MAP_COLS, seed);
         buildMap();
 
-        spieler.playerX   = 100;
-        spieler.playerY   = 250;
-        spieler.velocityY = 0;
-        spieler.isJumping = false;
+        player.playerX = 100;
+        player.playerY = 250;
+        player.velocityY = 0;
+        player.isJumping = false;
 
-        System.out.println("Neue Map! Seed: " + seed);
+        System.out.println("New map! Seed: " + seed);
     }
 
     // -------------------------------------------------------
@@ -150,10 +150,10 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     // -------------------------------------------------------
     @Override
     public void actionPerformed(ActionEvent e) {
-        spieler.update();
+        player.update();
         
         // Check if player has reached the right edge of the map to advance to next level
-        if (spieler.playerX > MAP_COLS * TILE_SIZE) {
+        if (player.playerX > MAP_COLS * TILE_SIZE) {
             timer.stop();
             if (uiReference != null) {
                 uiReference.advanceToNextLevel();
@@ -166,14 +166,14 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     }
 
     // -------------------------------------------------------
-    // KAMERA
+    // CAMERA
     // -------------------------------------------------------
     void updateCamera() {
         int viewW = Math.max(1, getWidth());
         int viewH = Math.max(1, getHeight());
 
-        cameraX = spieler.playerX + 25 - viewW / 2;
-        cameraY = spieler.playerY + 25 - viewH / 2;
+        cameraX = player.playerX + 25 - viewW / 2;
+        cameraY = player.playerY + 25 - viewH / 2;
 
         cameraX = Math.max(0, Math.min(cameraX, MAP_COLS * TILE_SIZE - viewW));
         cameraY = Math.max(0, Math.min(cameraY, MAP_ROWS * TILE_SIZE - viewH));
@@ -204,7 +204,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
             g2.drawRect(tile.x, tile.y, tile.width, tile.height);
         }
 
-        spieler.draw(g2);
+        player.draw(g2);
 
         g2.translate(cameraX, cameraY);
 
@@ -219,7 +219,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
         // Debug info at bottom left
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        g2.drawString("Seed: " + seed + "  |  [R] = neue Map  |  [ESC] = Pause", 10, getHeight() - 10);
+        g2.drawString("Seed: " + seed + "  |  [R] = new map  |  [ESC] = Pause", 10, getHeight() - 10);
 
         // Draw pause menu if paused
         if (isPaused) {

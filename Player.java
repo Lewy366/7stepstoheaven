@@ -2,7 +2,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 
-public class Spieler {
+public class Player {
 
     int playerX = 100;
     int playerY = 250;
@@ -19,20 +19,19 @@ public class Spieler {
     boolean leftPressed = false;
     boolean rightPressed = false;
 
-    // Tiles werden von Platformer übergeben
     ArrayList<Rectangle> tiles;
 
-    // KeyAdapter wird von Platformer an den JFrame gehängt
     KeyAdapter keyAdapter = new KeyAdapter() {
         @Override
         public void keyPressed(KeyEvent e) {
             if (e.getKeyCode() == KeyEvent.VK_A) leftPressed = true;
             if (e.getKeyCode() == KeyEvent.VK_D) rightPressed = true;
             if (e.getKeyCode() == KeyEvent.VK_SPACE && !isJumping) {
-                velocityY = -18; // Sprung (original)
+                velocityY = -18;
                 isJumping = true;
             }
         }
+
         @Override
         public void keyReleased(KeyEvent e) {
             if (e.getKeyCode() == KeyEvent.VK_A) leftPressed = false;
@@ -40,17 +39,14 @@ public class Spieler {
         }
     };
 
-    public Spieler(ArrayList<Rectangle> tiles) {
+    public Player(ArrayList<Rectangle> tiles) {
         this.tiles = tiles;
     }
 
     public void update() {
-
-        // Links / Rechts Bewegung (original)
-        if (leftPressed)  playerX -= speed;
+        if (leftPressed) playerX -= speed;
         if (rightPressed) playerX += speed;
 
-        // Horizontale Tile-Kollision
         Rectangle player = new Rectangle(playerX, playerY, 50, 50);
         for (Rectangle tile : tiles) {
             if (player.intersects(tile)) {
@@ -63,13 +59,11 @@ public class Spieler {
             }
         }
 
-        // Schwerkraft mit Beschleunigung (original)
         velocityY += gravity;
         if (velocityY > maxFallSpeed) velocityY = maxFallSpeed;
 
         playerY += velocityY;
 
-        // Vertikale Tile-Kollision
         onGround = false;
         player = new Rectangle(playerX, playerY, 50, 50);
         for (Rectangle tile : tiles) {
