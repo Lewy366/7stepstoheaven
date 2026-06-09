@@ -5,6 +5,8 @@ import javax.swing.*;
 
 public class GameUI extends JFrame {
 
+    boolean gameRunning = false;
+
     // Main colors used throughout the menu and game UI.
     private static final Color BG_DARK = new Color(10, 10, 18);
     private static final Color ACCENT_BLUE = new Color(58, 58, 255);
@@ -212,26 +214,7 @@ public class GameUI extends JFrame {
     // Creates the game panel if needed, places it on screen, and gives it
     // keyboard focus so movement controls work immediately.
     private void startGame() {
-        if (gamePanel == null) {
-            Image backgroundImage = ((BackgroundPanel) getContentPane()).getBackgroundImage();
-            gamePanel = new Generator(backgroundImage, currentLevel, this);
-            gamePanel.setPreferredSize(new Dimension(getWidth(), getHeight()));
-            gamePanel.setFocusable(true);
-        }
-
-        gameContainer.removeAll();
-        gameContainer.add(gamePanel, BorderLayout.CENTER);
-        gameContainer.revalidate();
-        gameContainer.repaint();
-
-        infoPanel.setVisible(false);
-        setExtendedState(JFrame.MAXIMIZED_BOTH);
-
-        SwingUtilities.invokeLater(() -> {
-            if (gamePanel != null) {
-                gamePanel.requestFocusInWindow();
-            }
-        });
+        
     }
 
     // Called by Generator when the pause menu sends the player back to the title

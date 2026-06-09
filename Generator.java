@@ -134,7 +134,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
                 }
             }
         } else {
-            // Boss room — add your boss-room logic here
+            // Boss room ? add your boss-room logic here
         }
 
         return map;
@@ -142,8 +142,6 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
 
     // -------------------------------------------------------
     // BUILD MAP
-    // Fix 4: was referencing undefined variables "dieMap" and "g1"
-    //        Changed to "map" and "TILE_SIZE"
     // -------------------------------------------------------
     void buildMap() {
         tiles.clear();
@@ -362,8 +360,6 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
             }
             return;
         }
-
-        if (e.getKeyCode() == KeyEvent.VK_R) regenerateMap();
     }
 
     private void handleMenuSelection() {
