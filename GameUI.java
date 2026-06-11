@@ -214,7 +214,8 @@ public class GameUI extends JFrame {
     // Creates the game panel if needed, places it on screen, and gives it
     // keyboard focus so movement controls work immediately.
     private void startGame() {
-        
+        this.dispose();
+        MainGame.main(new String[0]);
     }
 
     // Called by Generator when the pause menu sends the player back to the title

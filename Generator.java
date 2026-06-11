@@ -1,3 +1,4 @@
+
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
@@ -72,15 +73,20 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
 
         seed = System.currentTimeMillis();
         // Fix 2: was calling nonexistent generateMap(); use generateMap() which now calls mapgen() internally
-        map = generateMap(MAP_ROWS, MAP_COLS, seed);
-        buildMap();
+        map = new int[MAP_ROWS][MAP_COLS];
+        initializeMap();
+        buildTilesFromMap();
 
         player = new Player(tiles);
         addKeyListener(player.keyAdapter);
-        addKeyListener(this);
 
         timer.start();
         System.out.println("Level " + (int)levelChanger.currentlevel + ": " + LEVEL_NAMES[(int)levelChanger.currentlevel - 1]);
+    }
+
+    // Initialize map separately to avoid calling overridable method in constructor
+    private void initializeMap() {
+        map = generateMap(MAP_ROWS, MAP_COLS, seed);
     }
 
     // -------------------------------------------------------
@@ -143,7 +149,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
     // -------------------------------------------------------
     // BUILD MAP
     // -------------------------------------------------------
-    void buildMap() {
+    final void buildTilesFromMap() {
         tiles.clear();
         for (int row = 0; row < map.length; row++) {
             for (int col = 0; col < map[row].length; col++) {
