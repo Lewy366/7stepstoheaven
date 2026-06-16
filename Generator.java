@@ -235,97 +235,9 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
         g2.setColor(Color.WHITE);
         g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
         g2.drawString("Seed: " + seed + "  |  [R] = new map  |  [ESC] = Pause", 10, getHeight() - 10);
-
-        // Draw pause menu if paused
-        if (isPaused) {
-            drawPauseMenu(g2);
-        }
     }
 
-    // Draw the pause menu overlay
-    private void drawPauseMenu(Graphics2D g2) {
-        g2.setColor(new Color(0, 0, 0, 150));
-        g2.fillRect(0, 0, getWidth(), getHeight());
-
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        int centerX = getWidth() / 2;
-        int centerY = getHeight() / 2;
-
-        if (inControlsMenu) {
-            drawControlsMenu(g2, centerX, centerY);
-        } else {
-            drawMainPauseMenu(g2, centerX, centerY);
-        }
-    }
-
-    private void drawMainPauseMenu(Graphics2D g2, int centerX, int centerY) {
-        String[] options = { "Resume Game", "Controls", "Back to Menu", "Quit to Desktop" };
-
-        g2.setColor(new Color(255, 200, 0));
-        g2.setFont(new Font("Monospaced", Font.BOLD, 48));
-        String title = "PAUSED";
-        FontMetrics fm = g2.getFontMetrics();
-        int titleX = centerX - fm.stringWidth(title) / 2;
-        g2.drawString(title, titleX, centerY - 150);
-
-        int startY   = centerY - 20;
-        int spacing  = 70;
-
-        for (int i = 0; i < options.length; i++) {
-            g2.setFont(new Font("Monospaced", Font.BOLD, 24));
-
-            if (i == selectedMenuOption) {
-                g2.setColor(new Color(58, 58, 255));
-                g2.fillRect(centerX - 180, startY + i * spacing - 25, 360, 50);
-                g2.setColor(new Color(10, 255, 110));
-            } else {
-                g2.setColor(new Color(232, 232, 255));
-            }
-
-            fm = g2.getFontMetrics();
-            int optionX = centerX - fm.stringWidth(options[i]) / 2;
-            g2.drawString(options[i], optionX, startY + i * spacing);
-        }
-
-        g2.setColor(new Color(106, 106, 154));
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        g2.drawString("Use UP/DOWN arrows to navigate, ENTER to select", centerX - 200, getHeight() - 40);
-    }
-
-    private void drawControlsMenu(Graphics2D g2, int centerX, int centerY) {
-        String[] controls = MOVEMENT_CONTROLS;
-
-        g2.setColor(new Color(255, 200, 0));
-        g2.setFont(new Font("Monospaced", Font.BOLD, 48));
-        String title = "MOVEMENT CONTROLS";
-        FontMetrics fm = g2.getFontMetrics();
-        int titleX = centerX - fm.stringWidth(title) / 2;
-        g2.drawString(title, titleX, centerY - 150);
-
-        int startY  = centerY - 20;
-        int spacing = 70;
-
-        for (int i = 0; i < controls.length; i++) {
-            g2.setFont(new Font("Monospaced", Font.BOLD, 24));
-
-            if (i == selectedControlOption) {
-                g2.setColor(new Color(58, 58, 255));
-                g2.fillRect(centerX - 200, startY + i * spacing - 25, 400, 50);
-                g2.setColor(new Color(10, 255, 110));
-            } else {
-                g2.setColor(new Color(232, 232, 255));
-            }
-
-            fm = g2.getFontMetrics();
-            int optionX = centerX - fm.stringWidth(controls[i]) / 2;
-            g2.drawString(controls[i], optionX, startY + i * spacing);
-        }
-
-        g2.setColor(new Color(106, 106, 154));
-        g2.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        g2.drawString("Use UP/DOWN to select, ENTER to confirm, ESC to go back", centerX - 250, getHeight() - 40);
-    }
+    
 
     // -------------------------------------------------------
     // CONTROLS
@@ -341,56 +253,7 @@ public class Generator extends JPanel implements ActionListener, KeyListener {
             repaint();
             return;
         }
-
-        if (isPaused) {
-            if (inControlsMenu) {
-                if (e.getKeyCode() == KeyEvent.VK_UP) {
-                    selectedControlOption = (selectedControlOption - 1 + MOVEMENT_CONTROLS.length) % MOVEMENT_CONTROLS.length;
-                    repaint();
-                } else if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-                    selectedControlOption = (selectedControlOption + 1) % MOVEMENT_CONTROLS.length;
-                    repaint();
-                } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    System.out.println("Selected controls: " + MOVEMENT_CONTROLS[selectedControlOption]);
-                }
-            } else {
-                if (e.getKeyCode() == KeyEvent.VK_UP) {
-                    selectedMenuOption = (selectedMenuOption - 1 + 4) % 4;
-                    repaint();
-                } else if (e.getKeyCode() == KeyEvent.VK_DOWN) {
-                    selectedMenuOption = (selectedMenuOption + 1) % 4;
-                    repaint();
-                } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    handleMenuSelection();
-                }
-            }
-            return;
-        }
     }
-
-    private void handleMenuSelection() {
-        switch (selectedMenuOption) {
-            case 0: // Resume Game
-                isPaused = false;
-                repaint();
-                break;
-            case 1: // Controls
-                inControlsMenu = true;
-                selectedControlOption = 0;
-                repaint();
-                break;
-            case 2: // Back to Menu
-                timer.stop();
-                if (uiReference != null) {
-                    uiReference.returnToMainMenu();
-                }
-                break;
-            case 3: // Quit to Desktop
-                System.exit(0);
-                break;
-        }
-    }
-
     @Override public void keyReleased(KeyEvent e) {}
     @Override public void keyTyped(KeyEvent e) {}
 }

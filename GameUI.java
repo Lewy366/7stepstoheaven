@@ -5,8 +5,6 @@ import javax.swing.*;
 
 public class GameUI extends JFrame {
 
-    boolean gameRunning = false;
-
     // Main colors used throughout the menu and game UI.
     private static final Color BG_DARK = new Color(10, 10, 18);
     private static final Color ACCENT_BLUE = new Color(58, 58, 255);
@@ -55,7 +53,6 @@ public class GameUI extends JFrame {
         mainPanel.setOpaque(false);
 
         mainPanel.add(createMainMenu(), "MENU");
-        mainPanel.add(createGameView(), "GAME");
 
         setContentPane(new BackgroundPanel());
         getContentPane().setLayout(new BorderLayout());
@@ -157,85 +154,11 @@ public class GameUI extends JFrame {
         return panel;
     }
 
-    // Builds the game screen. The Generator panel is inserted later when the
-    // player clicks Start Game.
-    private JPanel createGameView() {
-        gameScreen = new JPanel(new BorderLayout());
-        gameScreen.setOpaque(false);
-
-        gameContainer = new JPanel(new BorderLayout());
-        gameContainer.setOpaque(false);
-        gameContainer.setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
-
-        JLabel placeholder = createLabel("Click Start Game to load the level.", 18, TEXT_MUTED, Font.PLAIN);
-        placeholder.setHorizontalAlignment(SwingConstants.CENTER);
-        gameContainer.add(placeholder, BorderLayout.CENTER);
-
-        infoPanel = new JPanel();
-        infoPanel.setOpaque(false);
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createEmptyBorder(50, 40, 50, 60));
-
-        JLabel runningLabel = createLabel("- GAME RUNNING -", 10, GREEN_START, Font.PLAIN);
-        runningLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        gameDifficultyLabel = createLabel("NORMAL", 13, YELLOW, Font.BOLD);
-        gameDifficultyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        gameStarsLabel = createLabel(Difficulty.NORMAL.getStars(), 18, YELLOW, Font.PLAIN);
-        gameStarsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        gameInfoLabel = createLabel(buildStatsText(Difficulty.NORMAL), 10, TEXT_MUTED, Font.PLAIN);
-        gameInfoLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JButton stopButton = createButton("[]  Stop Game", RED_QUIT);
-        stopButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        stopButton.addActionListener(e -> showQuitDialog());
-
-        infoPanel.add(runningLabel);
-        infoPanel.add(Box.createVerticalStrut(26));
-        infoPanel.add(createPixelDivider());
-        infoPanel.add(Box.createVerticalStrut(26));
-        infoPanel.add(gameDifficultyLabel);
-        infoPanel.add(Box.createVerticalStrut(6));
-        infoPanel.add(gameStarsLabel);
-        infoPanel.add(Box.createVerticalStrut(8));
-        infoPanel.add(gameInfoLabel);
-        infoPanel.add(Box.createVerticalStrut(16));
-        infoPanel.add(createPixelDivider()); 
-        infoPanel.add(Box.createVerticalStrut(26));
-        infoPanel.add(stopButton);
-
-        gameScreen.add(gameContainer, BorderLayout.CENTER);
-        gameScreen.add(infoPanel, BorderLayout.EAST);
-        return gameScreen;
-    }
-
     // Creates the game panel if needed, places it on screen, and gives it
     // keyboard focus so movement controls work immediately.
     private void startGame() {
         this.dispose();
         MainGame.main(new String[0]);
-    }
-
-    // Called by Generator when the pause menu sends the player back to the title
-    // screen. This resets the game state to level 1.
-    public void returnToMainMenu() {
-        if (gamePanel != null) {
-            gamePanel.timer.stop();
-            gamePanel = null;
-        }
-        currentLevel = 1;
-        updateBackgroundForLevel(1);
-        gameContainer.removeAll();
-        JLabel placeholder = createLabel("Click Start Game to load the level.", 18, TEXT_MUTED, Font.PLAIN);
-        placeholder.setHorizontalAlignment(SwingConstants.CENTER);
-        gameContainer.add(placeholder, BorderLayout.CENTER);
-        gameContainer.revalidate();
-        gameContainer.repaint();
-        infoPanel.setVisible(true);
-        setExtendedState(JFrame.NORMAL);
-        cardLayout.show(mainPanel, "MENU");
     }
 
     // Changes the window background image to match the current level.
@@ -278,9 +201,9 @@ public class GameUI extends JFrame {
     private Image loadBackgroundForLevel(int level) {
         try {
             String[] possiblePaths = {
-                level + ".png",
-                "Background/" + level + ".png",
-                System.getProperty("user.dir") + "/Background/" + level + ".png"
+                "MainMenu" + ".png",
+                "Background/" + "MainMenu" + ".png",
+                System.getProperty("user.dir") + "/Background/" + "MainMenu" + ".png"
             };
 
             for (String path : possiblePaths) {
@@ -471,9 +394,9 @@ public class GameUI extends JFrame {
         // Tries each supported background path and returns the first valid image.
         private Image loadImageForLevel(int level) {
             String[] possiblePaths = {
-                level + ".png",
-                "Background/" + level + ".png",
-                System.getProperty("user.dir") + "/Background/" + level + ".png"
+                "MainMenu" + ".png",
+                "Background/" + "MainMenu" + ".png",
+                System.getProperty("user.dir") + "/Background/" + "MainMenu" + ".png"
             };
             for (String path : possiblePaths) {
                 java.io.File file = new java.io.File(path);
