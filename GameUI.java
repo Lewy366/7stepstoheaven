@@ -13,6 +13,7 @@ public class GameUI extends JFrame {
     private static final Color YELLOW = new Color(255, 200, 0);
     private static final Color TEXT_LIGHT = new Color(232, 232, 255);
     private static final Color TEXT_MUTED = new Color(106, 106, 154);
+    private static final Color TEXT_WHITE = new Color(255, 255, 255);
 
     // Colors match the order of the Difficulty enum: easy, normal, hard.
     private static final Color[] DIFF_COLORS = { GREEN_START, YELLOW, RED_QUIT };
@@ -69,24 +70,24 @@ public class GameUI extends JFrame {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(40, 60, 40, 60));
 
-        JLabel version = createLabel("Version 1.0", 10, TEXT_MUTED, Font.PLAIN);
-        JLabel title = createLabel("7StepsToHeaven", 28, TEXT_LIGHT, Font.BOLD);
-        JLabel subtitle = createLabel("Get to heaven", 12, TEXT_MUTED, Font.PLAIN);
+        JLabel version = createLabel("Version 1.0", 24, TEXT_WHITE, Font.BOLD);
+        JLabel title = createLabel("7StepsToHeaven", 30, TEXT_WHITE, Font.BOLD);
+        JLabel subtitle = createLabel("Get to heaven", 19, TEXT_WHITE, Font.PLAIN);
         version.setAlignmentX(Component.CENTER_ALIGNMENT);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
         subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel sectionLabel = createLabel("Difficulty", 9, TEXT_MUTED, Font.PLAIN);
+        JLabel sectionLabel = createLabel("Difficulty", 20, TEXT_LIGHT, Font.PLAIN);
         sectionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel difficultyRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         difficultyRow.setOpaque(false);
         difficultyRow.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel descriptionLabel = createLabel(selectedDifficulty.getDescription(), 11, TEXT_MUTED, Font.PLAIN);
-        JLabel starsLabel = createLabel(selectedDifficulty.getStars(), 16,
-                DIFF_COLORS[selectedDifficulty.getLevel() - 1], Font.PLAIN);
-        JLabel statsLabel = createLabel(buildStatsText(selectedDifficulty), 10, TEXT_MUTED, Font.PLAIN);
+        JLabel descriptionLabel = createLabel(selectedDifficulty.getDescription(), 16, TEXT_WHITE, Font.BOLD);
+        JLabel starsLabel = createLabel(selectedDifficulty.getStars(), 22,
+                DIFF_COLORS[selectedDifficulty.getLevel() - 1], Font.BOLD);
+        JLabel statsLabel = createLabel(buildStatsText(selectedDifficulty), 14, TEXT_WHITE, Font.PLAIN);
         descriptionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         starsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         statsLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -306,15 +307,15 @@ public class GameUI extends JFrame {
                 super.paintComponent(g);
             }
         };
-        button.setFont(new Font("Monospaced", Font.BOLD, 11));
+        button.setFont(new Font("Monospaced", Font.BOLD, 40));
         button.setForeground(color);
         button.setOpaque(false);
         button.setContentAreaFilled(false);
         button.setBorderPainted(false);
         button.setFocusPainted(false);
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        button.setPreferredSize(new Dimension(220, 46));
-        button.setMaximumSize(new Dimension(220, 46));
+        button.setPreferredSize(new Dimension(380, 50));
+        button.setMaximumSize(new Dimension(380, 50));
         return button;
     }
 
@@ -338,14 +339,14 @@ public class GameUI extends JFrame {
                 super.paintComponent(g);
             }
         };
-        toggleButton.setFont(new Font("Monospaced", Font.BOLD, 10));
+        toggleButton.setFont(new Font("Monospaced", Font.BOLD, 20));
         toggleButton.setForeground(color);
         toggleButton.setOpaque(false);
         toggleButton.setContentAreaFilled(false);
         toggleButton.setBorderPainted(false);
         toggleButton.setFocusPainted(false);
         toggleButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        toggleButton.setPreferredSize(new Dimension(100, 38));
+        toggleButton.setPreferredSize(new Dimension(150, 50));
         return toggleButton;
     }
 
